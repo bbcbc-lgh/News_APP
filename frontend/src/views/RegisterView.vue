@@ -31,18 +31,15 @@ async function submit() {
 
 <template>
   <div class="auth-page">
-    <div class="auth-grid"></div>
-
+    <div class="auth-bg"></div>
     <div class="auth-top">
       <div class="logo-mark">AI</div>
       <h1 class="brand-name">Nexus</h1>
       <p class="brand-sub">NEXUS · DAILY DIGEST</p>
     </div>
-
     <div class="auth-card">
       <div class="card-eyebrow">CREATE ACCOUNT</div>
       <h2 class="card-title">加入我们</h2>
-
       <div class="field">
         <label>USERNAME</label>
         <input v-model="username" type="text" placeholder="3-20位字符" autocomplete="username" />
@@ -55,23 +52,19 @@ async function submit() {
         <label>CONFIRM PASSWORD</label>
         <input v-model="confirm" type="password" placeholder="再次输入密码" @keyup.enter="submit" autocomplete="new-password" />
       </div>
-
       <p v-if="error" class="err-msg">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="flex-shrink:0;margin-top:1px">
-          <circle cx="7" cy="7" r="6" stroke="#F85149" stroke-width="1.4"/>
-          <path d="M7 4v4M7 9.5v.5" stroke="#F85149" stroke-width="1.4" stroke-linecap="round"/>
+          <circle cx="7" cy="7" r="6" stroke="#C0364D" stroke-width="1.4"/>
+          <path d="M7 4v4M7 9.5v.5" stroke="#C0364D" stroke-width="1.4" stroke-linecap="round"/>
         </svg>
         {{ error }}
       </p>
-
-      <button class="btn-submit" :disabled="loading" @click="submit">
-        <span v-if="!loading">立即注册</span>
+      <button class="btn-submit" :class="{ loading }" :disabled="loading" @click="submit">
+        <span v-if="!loading">注 册</span>
         <span v-else class="btn-spinner"></span>
       </button>
-
-      <p class="switch-link">已有账号？<RouterLink to="/login">← 返回登录</RouterLink></p>
+      <p class="switch-link">已有账号？<RouterLink to="/login">立即登录 →</RouterLink></p>
     </div>
-
     <div class="source-badges">
       <span class="badge hn">HN</span>
       <span class="badge openai">OpenAI</span>
@@ -83,127 +76,108 @@ async function submit() {
 
 <style scoped>
 .auth-page {
-  min-height: 100vh;
-  background: var(--bg);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 32px 24px;
-  position: relative;
-  overflow: hidden;
-  gap: 28px;
+  min-height: 100vh; background: var(--bg);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 32px 24px; position: relative;
+  overflow: hidden; gap: 24px;
 }
-.auth-grid {
+.auth-bg {
   position: absolute; inset: 0;
-  background-image:
-    linear-gradient(rgba(245,166,35,0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(245,166,35,0.04) 1px, transparent 1px);
-  background-size: 40px 40px;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(200,134,10,0.06) 0%, transparent 70%),
+    repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(200,134,10,0.04) 39px, rgba(200,134,10,0.04) 40px),
+    repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(200,134,10,0.04) 39px, rgba(200,134,10,0.04) 40px);
   pointer-events: none;
 }
-.auth-grid::after {
-  content: '';
-  position: absolute; inset: 0;
-  background: radial-gradient(ellipse 70% 60% at 50% 40%, transparent 30%, var(--bg) 100%);
-}
 .auth-top {
-  text-align: center;
-  position: relative; z-index: 1;
+  text-align: center; position: relative; z-index: 1;
   display: flex; flex-direction: column; align-items: center; gap: 6px;
 }
 .logo-mark {
-  width: 52px; height: 52px;
-  background: var(--brand); color: var(--bg);
-  font-family: 'Playfair Display', 'Noto Serif SC', serif;
-  font-size: 20px; font-weight: 900;
+  width: 52px; height: 52px; background: var(--brand); color: #fff;
+  font-family: 'Libre Baskerville', 'Noto Serif SC', serif;
+  font-size: 18px; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
-  border-radius: 12px; margin-bottom: 4px; box-shadow: var(--shadow-glow);
+  border-radius: 12px; margin-bottom: 4px;
+  box-shadow: 0 4px 16px rgba(200,134,10,0.25);
 }
 .brand-name {
-  font-family: 'Noto Serif SC', serif;
-  font-size: 26px; font-weight: 900;
-  color: var(--text-primary); letter-spacing: 3px;
+  font-family: 'Libre Baskerville', 'Noto Serif SC', serif;
+  font-size: 28px; font-weight: 700;
+  color: var(--text-primary); letter-spacing: 2px;
 }
 .brand-sub {
-  font-family: 'DM Mono', monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 10px; color: var(--text-muted); letter-spacing: 3px;
 }
 .auth-card {
   width: 100%; max-width: 360px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-strong);
+  background: var(--bg-card); border: 1px solid var(--border);
   border-radius: 16px; padding: 28px 24px 24px;
   position: relative; z-index: 1; box-shadow: var(--shadow-md);
 }
 .auth-card::before {
   content: ''; position: absolute;
-  top: 0; left: 24px; right: 24px; height: 1px;
-  background: linear-gradient(90deg, transparent, var(--brand-glow), transparent);
+  top: 0; left: 24px; right: 24px; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--brand), transparent);
+  border-radius: 2px;
 }
 .card-eyebrow {
-  font-family: 'DM Mono', monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 10px; font-weight: 500;
   letter-spacing: 3px; color: var(--brand); margin-bottom: 6px;
 }
 .card-title {
-  font-family: 'Noto Serif SC', serif;
-  font-size: 22px; font-weight: 900;
+  font-family: 'Libre Baskerville', 'Noto Serif SC', serif;
+  font-size: 22px; font-weight: 700;
   color: var(--text-primary); margin-bottom: 24px;
 }
 .field { margin-bottom: 16px; }
 label {
-  display: block;
-  font-family: 'DM Mono', monospace;
+  display: block; font-family: 'JetBrains Mono', monospace;
   font-size: 10px; font-weight: 500;
   color: var(--text-muted); letter-spacing: 2px; margin-bottom: 7px;
 }
 input {
-  width: 100%; padding: 11px 14px;
-  background: var(--bg); border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm); font-size: 15px; color: var(--text-primary);
+  width: 100%; padding: 11px 14px; background: var(--bg);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 15px; color: var(--text-primary);
   transition: border-color 0.18s, box-shadow 0.18s;
 }
 input::placeholder { color: var(--text-muted); }
 input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-dim); }
 .err-msg {
   display: flex; align-items: flex-start; gap: 7px;
-  font-size: 13px; color: #F85149;
-  background: rgba(248,81,73,0.08); border: 1px solid rgba(248,81,73,0.2);
+  font-size: 13px; color: var(--mit-fg);
+  background: rgba(192,54,77,0.06); border: 1px solid rgba(192,54,77,0.18);
   border-radius: var(--radius-sm); padding: 9px 12px; margin-bottom: 14px;
 }
 .btn-submit {
-  width: 100%; padding: 13px;
-  background: var(--brand); color: var(--bg);
-  border-radius: var(--radius-sm);
-  font-size: 14px; font-weight: 700; letter-spacing: 3px;
-  margin-top: 4px; margin-bottom: 18px;
+  width: 100%; padding: 13px; background: var(--brand); color: #fff;
+  border-radius: var(--radius-sm); font-size: 14px; font-weight: 700;
+  letter-spacing: 3px; margin-top: 4px; margin-bottom: 18px;
   transition: opacity 0.18s, transform 0.12s, box-shadow 0.18s;
   display: flex; align-items: center; justify-content: center; min-height: 46px;
 }
-.btn-submit:not(:disabled):hover { box-shadow: var(--shadow-glow); }
+.btn-submit:not(:disabled):hover { box-shadow: 0 4px 16px rgba(200,134,10,0.3); }
 .btn-submit:not(:disabled):active { transform: scale(0.98); opacity: 0.9; }
 .btn-submit:disabled { opacity: 0.45; }
 .btn-spinner {
   width: 18px; height: 18px;
-  border: 2px solid rgba(13,17,23,0.3);
-  border-top-color: var(--bg); border-radius: 50%;
-  animation: spin 0.6s linear infinite; display: inline-block;
+  border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff;
+  border-radius: 50%; animation: spin 0.6s linear infinite; display: inline-block;
 }
 @keyframes spin { to { transform: rotate(360deg) } }
 .switch-link { text-align: center; font-size: 13px; color: var(--text-muted); }
 .switch-link a { color: var(--brand); font-weight: 700; }
-.source-badges {
-  display: flex; gap: 8px; position: relative; z-index: 1;
-  flex-wrap: wrap; justify-content: center;
-}
+.source-badges { display: flex; gap: 8px; position: relative; z-index: 1; flex-wrap: wrap; justify-content: center; }
 .badge {
-  font-family: 'DM Mono', monospace;
-  font-size: 10px; font-weight: 500;
-  padding: 3px 9px; border-radius: 4px; letter-spacing: 0.5px; opacity: 0.6;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; font-weight: 500; padding: 3px 9px; border-radius: 4px; letter-spacing: 0.5px;
 }
-.badge.hn { background: rgba(255,102,0,0.15); color: var(--hn); border: 1px solid rgba(255,102,0,0.25); }
-.badge.openai { background: rgba(16,163,127,0.15); color: var(--openai); border: 1px solid rgba(16,163,127,0.25); }
-.badge.google { background: rgba(66,133,244,0.15); color: var(--google); border: 1px solid rgba(66,133,244,0.25); }
-.badge.mit { background: rgba(163,31,52,0.15); color: #E05A6D; border: 1px solid rgba(163,31,52,0.3); }
+.badge.hn { background: rgba(224,93,0,0.08); color: var(--hn); border: 1px solid rgba(224,93,0,0.2); }
+.badge.openai { background: rgba(13,138,106,0.08); color: var(--openai); border: 1px solid rgba(13,138,106,0.2); }
+.badge.google { background: rgba(26,115,232,0.08); color: var(--google); border: 1px solid rgba(26,115,232,0.2); }
+.badge.mit { background: rgba(155,28,46,0.08); color: var(--mit-fg); border: 1px solid rgba(155,28,46,0.2); }
 </style>
