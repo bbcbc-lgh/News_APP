@@ -33,3 +33,8 @@ click==8.4.1
 colorama==0.4.6
 h11==0.16.0
 idna==3.18
+
+# 采集器
+feedparser==6.0.11
+httpx==0.27.0
+celery==5.3.6
