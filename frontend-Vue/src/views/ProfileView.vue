@@ -14,6 +14,7 @@ const editMode = ref(false)
 const pwdMode = ref(false)
 
 const editForm = ref({ nickname: '', bio: '', gender: 'unknown' as 'male' | 'female' | 'unknown' })
+const overlayMousedownTarget = ref<EventTarget | null>(null)
 const pwdForm = ref({ oldPassword: '', newPassword: '', confirm: '' })
 const formErr = ref('')
 const saving = ref(false)
@@ -38,6 +39,16 @@ function avatarText() {
   const u = auth.userInfo
   if (!u) return '?'
   return (u.nickname || u.username || '?').charAt(0).toUpperCase()
+}
+
+function onOverlayMousedown(e: MouseEvent) {
+  overlayMousedownTarget.value = e.target
+}
+function onOverlayClick(e: MouseEvent, close: () => void) {
+  if (overlayMousedownTarget.value === e.currentTarget && e.target === e.currentTarget) {
+    close()
+  }
+  overlayMousedownTarget.value = null
 }
 
 function openEdit() {
@@ -264,7 +275,7 @@ onMounted(async () => {
 
     <!-- 编辑资料弹层 -->
     <Transition name="modal">
-      <div v-if="editMode" class="modal-overlay" @click.self="editMode = false">
+      <div v-if="editMode" class="modal-overlay" @mousedown="onOverlayMousedown" @click="onOverlayClick($event, () => editMode = false)">
         <div class="modal-sheet">
           <div class="sheet-handle"></div>
           <h3 class="sheet-title">编辑资料</h3>
@@ -303,7 +314,7 @@ onMounted(async () => {
 
     <!-- 改密码弹层 -->
     <Transition name="modal">
-      <div v-if="pwdMode" class="modal-overlay" @click.self="pwdMode = false">
+      <div v-if="pwdMode" class="modal-overlay" @mousedown="onOverlayMousedown" @click="onOverlayClick($event, () => pwdMode = false)">
         <div class="modal-sheet">
           <div class="sheet-handle"></div>
           <h3 class="sheet-title">修改密码</h3>
