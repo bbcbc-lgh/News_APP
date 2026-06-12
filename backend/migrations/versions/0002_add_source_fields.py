@@ -4,17 +4,45 @@
 import sqlalchemy as sa
 
 async def upgrade(conn):
-    await conn.execute(sa.text("""
-        ALTER TABLE news
-        ADD COLUMN IF NOT EXISTS source_platform VARCHAR(50) COMMENT '数据源平台标识',
-        ADD COLUMN IF NOT EXISTS source_url VARCHAR(500) COMMENT '原文链接',
-        ADD COLUMN IF NOT EXISTS content_hash VARCHAR(32) COMMENT '内容哈希去重'
-    """))
-    await conn.execute(sa.text("""
-        CREATE INDEX IF NOT EXISTS idx_source_platform ON news (source_platform)
-    """))
+    # 逐列检查是否存在，不存在才添加（兼容 MySQL 不支持 ADD COLUMN IF NOT EXISTS）
+    result = await conn.execute(sa.text(
+        "SELECT COUNT(*) FROM information_schema.COLUMNS "
+        "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'news' AND COLUMN_NAME = 'source_platform'"
+    ))
+    if result.scalar() == 0:
+        await conn.execute(sa.text(
+            "ALTER TABLE news ADD COLUMN source_platform VARCHAR(50) COMMENT 'data source platform'"
+        ))
+
+    result = await conn.execute(sa.text(
+        "SELECT COUNT(*) FROM information_schema.COLUMNS "
+        "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'news' AND COLUMN_NAME = 'source_url'"
+    ))
+    if result.scalar() == 0:
+        await conn.execute(sa.text(
+            "ALTER TABLE news ADD COLUMN source_url VARCHAR(500) COMMENT 'original article url'"
+        ))
+
+    result = await conn.execute(sa.text(
+        "SELECT COUNT(*) FROM information_schema.COLUMNS "
+        "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'news' AND COLUMN_NAME = 'content_hash'"
+    ))
+    if result.scalar() == 0:
+        await conn.execute(sa.text(
+            "ALTER TABLE news ADD COLUMN content_hash VARCHAR(32) COMMENT 'dedup hash'"
+        ))
+
+    # 加索引（忽略已存在错误）
+    try:
+        await conn.execute(sa.text(
+            "CREATE INDEX idx_source_platform ON news (source_platform)"
+        ))
+    except Exception:
+        pass
 
 async def downgrade(conn):
-    await conn.execute(sa.text("ALTER TABLE news DROP COLUMN IF EXISTS source_platform"))
-    await conn.execute(sa.text("ALTER TABLE news DROP COLUMN IF EXISTS source_url"))
-    await conn.execute(sa.text("ALTER TABLE news DROP COLUMN IF EXISTS content_hash"))
+    for col in ("source_platform", "source_url", "content_hash"):
+        try:
+            await conn.execute(sa.text(f"ALTER TABLE news DROP COLUMN {col}"))
+        except Exception:
+            pass
