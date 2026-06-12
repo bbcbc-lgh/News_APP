@@ -36,3 +36,6 @@ dist/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# ===== Kiro / Claude Code =====
+.claude/
