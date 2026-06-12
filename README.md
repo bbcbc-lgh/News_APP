@@ -23,7 +23,7 @@
 
 ```
 News_APP/
-├── backend-FastAPI/
+├── backend/
 │   ├── config/            # 数据库、Redis、环境变量配置
 │   ├── crawler/           # 采集器模块
 │   │   ├── base.py        # 入库基类
@@ -41,7 +41,7 @@ News_APP/
 │   ├── main.py            # 应用入口
 │   ├── requirements.txt   # 依赖列表
 │   └── .env.example       # 环境变量模板
-└── frontend-Vue/
+└── frontend/
     ├── src/
     │   ├── api/           # API 请求封装
     │   ├── stores/        # Pinia 状态管理
@@ -55,7 +55,7 @@ News_APP/
 ### 前置条件
 
 - Python 3.11+
-- Node.js 18+（pnpm）
+- Node.js 20+（pnpm v8+，推荐 pnpm v11）
 - MySQL 8.0+
 - Redis 6+
 
@@ -69,7 +69,7 @@ cd News_APP
 ### 2. 配置后端环境变量
 
 ```bash
-cd backend-FastAPI
+cd backend
 cp .env.example .env
 # 编辑 .env，填入你的数据库密码和相关配置
 ```
@@ -146,7 +146,7 @@ asyncio.run(main())
 ### 7. 配置并启动前端
 
 ```bash
-cd ../frontend-Vue
+cd ../frontend
 pnpm install
 pnpm dev
 ```

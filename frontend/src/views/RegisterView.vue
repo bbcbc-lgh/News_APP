@@ -31,39 +31,38 @@ async function submit() {
 
 <template>
   <div class="auth-page">
-    <div class="auth-bg">
-      <div class="bg-line" v-for="i in 6" :key="i"></div>
-    </div>
+    <div class="auth-grid"></div>
 
     <div class="auth-top">
-      <div class="masthead">
-        <span class="masthead-zh">AI掘金头条</span>
-        <span class="masthead-rule"></span>
-        <span class="masthead-en">DAILY DIGEST</span>
-      </div>
-      <p class="tagline">洞见时代·掘金资讯</p>
+      <div class="logo-mark">AI</div>
+      <h1 class="brand-name">掘金头条</h1>
+      <p class="brand-sub">JUJIN · DAILY DIGEST</p>
     </div>
 
     <div class="auth-card">
-      <div class="card-header">
-        <h2>注册</h2>
-        <span class="card-sub">创建新账号</span>
-      </div>
+      <div class="card-eyebrow">CREATE ACCOUNT</div>
+      <h2 class="card-title">加入我们</h2>
 
       <div class="field">
-        <label>用户名</label>
+        <label>USERNAME</label>
         <input v-model="username" type="text" placeholder="3-20位字符" autocomplete="username" />
       </div>
       <div class="field">
-        <label>密码</label>
+        <label>PASSWORD</label>
         <input v-model="password" type="password" placeholder="至少6位" autocomplete="new-password" />
       </div>
       <div class="field">
-        <label>确认密码</label>
+        <label>CONFIRM PASSWORD</label>
         <input v-model="confirm" type="password" placeholder="再次输入密码" @keyup.enter="submit" autocomplete="new-password" />
       </div>
 
-      <p v-if="error" class="err-msg">{{ error }}</p>
+      <p v-if="error" class="err-msg">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="flex-shrink:0;margin-top:1px">
+          <circle cx="7" cy="7" r="6" stroke="#F85149" stroke-width="1.4"/>
+          <path d="M7 4v4M7 9.5v.5" stroke="#F85149" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+        {{ error }}
+      </p>
 
       <button class="btn-submit" :disabled="loading" @click="submit">
         <span v-if="!loading">立即注册</span>
@@ -72,13 +71,20 @@ async function submit() {
 
       <p class="switch-link">已有账号？<RouterLink to="/login">← 返回登录</RouterLink></p>
     </div>
+
+    <div class="source-badges">
+      <span class="badge hn">HN</span>
+      <span class="badge openai">OpenAI</span>
+      <span class="badge google">Google AI</span>
+      <span class="badge mit">MIT Tech</span>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .auth-page {
   min-height: 100vh;
-  background: #1A1714;
+  background: var(--bg);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -86,71 +92,118 @@ async function submit() {
   padding: 32px 24px;
   position: relative;
   overflow: hidden;
+  gap: 28px;
 }
-.auth-bg {
+.auth-grid {
   position: absolute; inset: 0;
-  display: flex; flex-direction: column;
-  justify-content: space-evenly; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(245,166,35,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245,166,35,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
 }
-.bg-line { width: 100%; height: 1px; background: rgba(255,255,255,0.04); }
-
-.auth-top { text-align: center; margin-bottom: 36px; position: relative; z-index: 1; }
-.masthead { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 10px; }
-.masthead-zh {
+.auth-grid::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 70% 60% at 50% 40%, transparent 30%, var(--bg) 100%);
+}
+.auth-top {
+  text-align: center;
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.logo-mark {
+  width: 52px; height: 52px;
+  background: var(--brand); color: var(--bg);
+  font-family: 'Playfair Display', 'Noto Serif SC', serif;
+  font-size: 20px; font-weight: 900;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 12px; margin-bottom: 4px; box-shadow: var(--shadow-glow);
+}
+.brand-name {
   font-family: 'Noto Serif SC', serif;
-  font-size: 24px; font-weight: 900;
-  color: #FEFCFA; letter-spacing: 2px;
+  font-size: 26px; font-weight: 900;
+  color: var(--text-primary); letter-spacing: 3px;
 }
-.masthead-rule { width: 1px; height: 20px; background: rgba(255,255,255,0.25); display: inline-block; }
-.masthead-en { font-size: 11px; font-weight: 700; color: var(--brand); letter-spacing: 3px; }
-.tagline { font-size: 12px; color: rgba(255,255,255,0.35); letter-spacing: 2px; }
-
+.brand-sub {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; color: var(--text-muted); letter-spacing: 3px;
+}
 .auth-card {
   width: 100%; max-width: 360px;
-  background: #FEFCFA; border-radius: 16px;
-  padding: 28px 24px 24px;
-  position: relative; z-index: 1;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: 16px; padding: 28px 24px 24px;
+  position: relative; z-index: 1; box-shadow: var(--shadow-md);
 }
-.card-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 22px; }
-h2 { font-family: 'Noto Serif SC', serif; font-size: 22px; font-weight: 900; color: var(--text-primary); }
-.card-sub { font-size: 13px; color: var(--text-muted); }
-
-.field { margin-bottom: 14px; }
-label { display: block; font-size: 12px; font-weight: 700; color: var(--text-secondary); letter-spacing: 0.5px; margin-bottom: 6px; }
+.auth-card::before {
+  content: ''; position: absolute;
+  top: 0; left: 24px; right: 24px; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--brand-glow), transparent);
+}
+.card-eyebrow {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; font-weight: 500;
+  letter-spacing: 3px; color: var(--brand); margin-bottom: 6px;
+}
+.card-title {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 22px; font-weight: 900;
+  color: var(--text-primary); margin-bottom: 24px;
+}
+.field { margin-bottom: 16px; }
+label {
+  display: block;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; font-weight: 500;
+  color: var(--text-muted); letter-spacing: 2px; margin-bottom: 7px;
+}
 input {
-  width: 100%; padding: 12px 14px;
-  background: var(--bg); border: 1.5px solid var(--border);
+  width: 100%; padding: 11px 14px;
+  background: var(--bg); border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm); font-size: 15px; color: var(--text-primary);
-  transition: border-color 0.18s, background 0.18s;
+  transition: border-color 0.18s, box-shadow 0.18s;
 }
-input:focus { border-color: var(--brand); background: #fff; }
-
+input::placeholder { color: var(--text-muted); }
+input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-dim); }
 .err-msg {
-  font-size: 13px; color: #C0392B;
-  background: rgba(192,57,43,0.08);
-  border-radius: 6px; padding: 8px 12px; margin-bottom: 14px;
+  display: flex; align-items: flex-start; gap: 7px;
+  font-size: 13px; color: #F85149;
+  background: rgba(248,81,73,0.08); border: 1px solid rgba(248,81,73,0.2);
+  border-radius: var(--radius-sm); padding: 9px 12px; margin-bottom: 14px;
 }
-
 .btn-submit {
   width: 100%; padding: 13px;
-  background: var(--brand); color: #fff;
+  background: var(--brand); color: var(--bg);
   border-radius: var(--radius-sm);
-  font-size: 15px; font-weight: 700; letter-spacing: 2px;
+  font-size: 14px; font-weight: 700; letter-spacing: 3px;
   margin-top: 4px; margin-bottom: 18px;
-  transition: opacity 0.18s, transform 0.12s;
+  transition: opacity 0.18s, transform 0.12s, box-shadow 0.18s;
   display: flex; align-items: center; justify-content: center; min-height: 46px;
 }
+.btn-submit:not(:disabled):hover { box-shadow: var(--shadow-glow); }
 .btn-submit:not(:disabled):active { transform: scale(0.98); opacity: 0.9; }
-.btn-submit:disabled { opacity: 0.55; }
+.btn-submit:disabled { opacity: 0.45; }
 .btn-spinner {
   width: 18px; height: 18px;
-  border: 2px solid rgba(255,255,255,0.4);
-  border-top-color: #fff; border-radius: 50%;
+  border: 2px solid rgba(13,17,23,0.3);
+  border-top-color: var(--bg); border-radius: 50%;
   animation: spin 0.6s linear infinite; display: inline-block;
 }
 @keyframes spin { to { transform: rotate(360deg) } }
-
 .switch-link { text-align: center; font-size: 13px; color: var(--text-muted); }
 .switch-link a { color: var(--brand); font-weight: 700; }
+.source-badges {
+  display: flex; gap: 8px; position: relative; z-index: 1;
+  flex-wrap: wrap; justify-content: center;
+}
+.badge {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; font-weight: 500;
+  padding: 3px 9px; border-radius: 4px; letter-spacing: 0.5px; opacity: 0.6;
+}
+.badge.hn { background: rgba(255,102,0,0.15); color: var(--hn); border: 1px solid rgba(255,102,0,0.25); }
+.badge.openai { background: rgba(16,163,127,0.15); color: var(--openai); border: 1px solid rgba(16,163,127,0.25); }
+.badge.google { background: rgba(66,133,244,0.15); color: var(--google); border: 1px solid rgba(66,133,244,0.25); }
+.badge.mit { background: rgba(163,31,52,0.15); color: #E05A6D; border: 1px solid rgba(163,31,52,0.3); }
 </style>

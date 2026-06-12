@@ -1,20 +1,31 @@
 <script setup lang="ts">
-import { onMounted, watch } from 'vue'
+import { onMounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useNewsStore } from '@/stores/newsStore'
 
 const news = useNewsStore()
 const router = useRouter()
 
+const SOURCE_META: Record<string, { label: string; color: string; key: string }> = {
+  'Hacker News':           { label: 'HN',       color: 'var(--hn)',     key: 'hn' },
+  'OpenAI Blog':           { label: 'OpenAI',   color: 'var(--openai)', key: 'openai' },
+  'Google AI Blog':        { label: 'Google AI',color: 'var(--google)', key: 'google' },
+  'MIT Technology Review': { label: 'MIT',      color: 'var(--mit-fg)', key: 'mit' },
+}
+
+function sourceMeta(source: string) {
+  return SOURCE_META[source] || { label: source, color: 'var(--brand)', key: 'default' }
+}
+
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime()
   const m = Math.floor(diff / 60000)
-  if (m < 60) return m <= 1 ? '刚刚' : `${m}分钟前`
+  if (m < 60) return m <= 1 ? '刚刚' : `${m}m ago`
   const h = Math.floor(m / 60)
-  if (h < 24) return `${h}小时前`
+  if (h < 24) return `${h}h ago`
   const d = Math.floor(h / 24)
-  if (d < 30) return `${d}天前`
-  return new Date(dateStr).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })
+  if (d < 30) return `${d}d ago`
+  return new Date(dateStr).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
 }
 
 function formatViews(v: number): string {
@@ -38,43 +49,44 @@ function onScroll(e: Event) {
 
 <template>
   <div class="news-page">
-    <!-- 顶栏 -->
     <header class="top-bar">
       <div class="logo-wrap">
-        <span class="logo-zh">AI掘金</span>
-        <span class="logo-divider"></span>
-        <span class="logo-sub">头条</span>
+        <span class="logo-mark">AI</span>
+        <div class="logo-text">
+          <span class="logo-zh">掘金头条</span>
+          <span class="logo-en">DAILY DIGEST</span>
+        </div>
       </div>
-      <div class="header-badge">HOT</div>
+      <div class="header-right">
+        <span class="live-dot"></span>
+        <span class="live-label">LIVE</span>
+      </div>
     </header>
 
-    <!-- 分类 tabs -->
-    <div class="tabs-wrap">
-      <div class="tabs">
+    <div class="source-strip">
+      <div class="source-chips">
         <button
           v-for="cat in news.categories"
           :key="cat.id"
-          :class="['tab', { active: news.activeCategoryId === cat.id }]"
+          :class="['chip', { active: news.activeCategoryId === cat.id }]"
           @click="news.setCategory(cat.id)"
         >{{ cat.name }}</button>
       </div>
     </div>
 
-    <!-- 新闻列表 -->
     <div class="list-wrap" @scroll="onScroll">
-      <!-- 骨架屏 -->
       <div v-if="news.newsList.length === 0 && news.loading" class="skeleton-list">
         <div v-for="i in 5" :key="i" class="skeleton-card">
           <div class="sk-body">
+            <div class="sk-eyebrow"></div>
             <div class="sk-line sk-title"></div>
-            <div class="sk-line sk-title sk-title-short"></div>
+            <div class="sk-line sk-title sk-short"></div>
             <div class="sk-line sk-meta"></div>
           </div>
           <div class="sk-img"></div>
         </div>
       </div>
 
-      <!-- 第一条：大图卡片 -->
       <template v-if="news.newsList.length > 0">
         <article
           class="news-card news-card--hero"
@@ -83,33 +95,36 @@ function onScroll(e: Event) {
           <img v-if="news.newsList[0].image" :src="news.newsList[0].image" class="hero-img" loading="lazy" />
           <div v-else class="hero-img hero-img--empty"></div>
           <div class="hero-overlay">
-            <div class="hero-category">
-              {{ news.categories.find(c => c.id === news.newsList[0].category_id)?.name || '头条' }}
+            <div class="hero-source-badge" :style="{ '--src-color': sourceMeta(news.newsList[0].source || '').color }">
+              {{ sourceMeta(news.newsList[0].source || '').label }}
             </div>
             <h2 class="hero-title">{{ news.newsList[0].title }}</h2>
             <div class="hero-meta">
               <span>{{ news.newsList[0].author || '未知' }}</span>
               <span class="dot">·</span>
-              <span>{{ formatViews(news.newsList[0].views) }}阅读</span>
+              <span>{{ formatViews(news.newsList[0].views) }} reads</span>
               <span class="dot">·</span>
               <span>{{ timeAgo(news.newsList[0].publish_time) }}</span>
             </div>
           </div>
         </article>
 
-        <!-- 剩余条目 -->
         <article
-          v-for="item in news.newsList.slice(1)"
+          v-for="(item, idx) in news.newsList.slice(1)"
           :key="item.id"
           class="news-card"
           @click="router.push(`/news/detail/${item.id}`)"
         >
+          <div class="card-index">{{ String(idx + 2).padStart(2, '0') }}</div>
           <div class="card-body">
+            <div class="card-source" :style="{ color: sourceMeta(item.source || '').color }">
+              {{ sourceMeta(item.source || '').label }}
+            </div>
             <h3 class="card-title">{{ item.title }}</h3>
             <div class="card-meta">
-              <span class="meta-author">{{ item.author || '未知' }}</span>
+              <span>{{ item.author || '未知' }}</span>
               <span class="meta-dot">·</span>
-              <span>{{ formatViews(item.views) }}阅读</span>
+              <span>{{ formatViews(item.views) }}</span>
               <span class="meta-dot">·</span>
               <span>{{ timeAgo(item.publish_time) }}</span>
             </div>
@@ -126,7 +141,7 @@ function onScroll(e: Event) {
       </div>
       <div v-if="!news.hasMore && news.newsList.length" class="no-more">
         <span class="no-more-line"></span>
-        <span>没有更多了</span>
+        <span class="no-more-text">END OF FEED</span>
         <span class="no-more-line"></span>
       </div>
     </div>
@@ -141,84 +156,106 @@ function onScroll(e: Event) {
   background: var(--bg);
 }
 
-/* ── 顶栏 ── */
+/* ── top bar ── */
 .top-bar {
-  height: 52px;
+  height: 54px;
   background: var(--bg-card);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
-  border-bottom: 2px solid var(--text-primary);
+  border-bottom: 1px solid var(--border-strong);
   position: sticky;
   top: 0;
   z-index: 10;
   flex-shrink: 0;
 }
 
-.logo-wrap { display: flex; align-items: center; gap: 8px; }
+.logo-wrap { display: flex; align-items: center; gap: 10px; }
+.logo-mark {
+  width: 32px; height: 32px;
+  background: var(--brand);
+  color: var(--bg);
+  font-family: 'Playfair Display', 'Noto Serif SC', serif;
+  font-size: 13px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  flex-shrink: 0;
+}
+.logo-text { display: flex; flex-direction: column; gap: 1px; }
 .logo-zh {
   font-family: 'Noto Serif SC', serif;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 900;
   color: var(--text-primary);
   letter-spacing: 1px;
+  line-height: 1;
 }
-.logo-divider {
-  width: 1.5px;
-  height: 14px;
-  background: var(--border-strong);
-  display: inline-block;
-}
-.logo-sub {
-  font-family: 'Noto Serif SC', serif;
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--brand);
+.logo-en {
+  font-family: 'DM Mono', monospace;
+  font-size: 8px;
+  color: var(--text-muted);
+  letter-spacing: 2px;
+  line-height: 1;
 }
 
-.header-badge {
+.header-right { display: flex; align-items: center; gap: 6px; }
+.live-dot {
+  width: 7px; height: 7px;
+  background: #3FB950;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+.live-label {
+  font-family: 'DM Mono', monospace;
   font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 1.5px;
-  color: #fff;
-  background: var(--brand);
-  padding: 2px 7px;
-  border-radius: 3px;
+  font-weight: 500;
+  color: #3FB950;
+  letter-spacing: 2px;
 }
 
-/* ── 分类 tabs ── */
-.tabs-wrap {
+/* ── source strip ── */
+.source-strip {
   background: var(--bg-card);
   overflow-x: auto;
   scrollbar-width: none;
   position: sticky;
-  top: 52px;
+  top: 54px;
   z-index: 9;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
-.tabs-wrap::-webkit-scrollbar { display: none; }
-.tabs { display: flex; padding: 0 10px; }
+.source-strip::-webkit-scrollbar { display: none; }
+.source-chips { display: flex; padding: 8px 12px; gap: 6px; }
 
-.tab {
+.chip {
   flex-shrink: 0;
-  padding: 10px 13px;
-  font-size: 13px;
+  padding: 5px 13px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
   font-weight: 500;
   color: var(--text-muted);
-  border-bottom: 2px solid transparent;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 20px;
   white-space: nowrap;
-  transition: color 0.15s, border-color 0.15s;
-  letter-spacing: 0.3px;
+  transition: all 0.18s;
+  letter-spacing: 0.5px;
 }
-.tab.active {
-  color: var(--text-primary);
-  border-bottom-color: var(--brand);
-  font-weight: 700;
+.chip.active {
+  color: var(--bg);
+  background: var(--brand);
+  border-color: var(--brand);
 }
 
-/* ── 列表 ── */
+/* ── list ── */
 .list-wrap {
   flex: 1;
   overflow-y: auto;
@@ -227,39 +264,33 @@ function onScroll(e: Event) {
 }
 .list-wrap::-webkit-scrollbar { display: none; }
 
-/* Hero 卡片 */
+/* hero */
 .news-card--hero {
   position: relative;
   border-radius: var(--radius);
   overflow: hidden;
   margin-bottom: 8px;
   cursor: pointer;
-  height: 210px;
+  height: 220px;
   background: var(--border);
+  border: 1px solid var(--border-strong);
 }
-.hero-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-.hero-img--empty { background: var(--border-strong); }
+.hero-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.hero-img--empty { background: var(--bg-elevated); }
 .hero-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to top, rgba(20,16,12,0.92) 0%, rgba(20,16,12,0.3) 55%, transparent 100%);
-  padding: 14px 14px 16px;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
+  position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(13,17,23,0.95) 0%, rgba(13,17,23,0.3) 55%, transparent 100%);
+  padding: 14px;
+  display: flex; flex-direction: column; justify-content: flex-end;
 }
-.hero-category {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  color: var(--brand);
-  background: rgba(232,66,10,0.15);
-  border: 1px solid var(--brand);
+.hero-source-badge {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  color: var(--src-color, var(--brand));
+  background: rgba(13,17,23,0.7);
+  border: 1px solid var(--src-color, var(--brand));
   padding: 2px 8px;
   border-radius: 3px;
   display: inline-block;
@@ -270,7 +301,7 @@ function onScroll(e: Event) {
   font-family: 'Noto Serif SC', serif;
   font-size: 17px;
   font-weight: 700;
-  color: #fff;
+  color: var(--text-primary);
   line-height: 1.5;
   margin-bottom: 8px;
   display: -webkit-box;
@@ -279,27 +310,43 @@ function onScroll(e: Event) {
   overflow: hidden;
 }
 .hero-meta { display: flex; align-items: center; gap: 5px; }
-.hero-meta span { font-size: 11px; color: rgba(255,255,255,0.6); }
+.hero-meta span { font-family: 'DM Mono', monospace; font-size: 10px; color: rgba(230,237,243,0.5); }
 
-/* 普通卡片 */
+/* regular card */
 .news-card {
   background: var(--bg-card);
   border-radius: var(--radius);
-  padding: 14px 12px;
+  padding: 13px 12px;
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: flex-start;
   cursor: pointer;
-  margin-bottom: 8px;
-  transition: background 0.12s;
+  margin-bottom: 6px;
+  transition: background 0.15s, border-color 0.15s;
   border: 1px solid var(--border);
 }
-.news-card:active { background: var(--bg); }
+.news-card:active { background: var(--bg-hover); }
 
-.card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 9px; }
+.card-index {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  padding-top: 3px;
+  min-width: 22px;
+}
+
+.card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.card-source {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
 .card-title {
   font-family: 'Noto Serif SC', serif;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   line-height: 1.55;
   color: var(--text-primary);
@@ -309,87 +356,66 @@ function onScroll(e: Event) {
   overflow: hidden;
 }
 .card-meta { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
-.card-meta span, .meta-author { font-size: 11px; color: var(--text-muted); }
+.card-meta span { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-muted); }
 .meta-dot { color: var(--border-strong); }
 
 .card-right { flex-shrink: 0; }
 .card-img {
-  width: 96px;
-  height: 70px;
+  width: 88px; height: 64px;
   border-radius: var(--radius-sm);
-  object-fit: cover;
-  display: block;
-}
-.card-img--empty { background: var(--border); }
-
-/* 骨架屏 */
-.skeleton-list { }
-.skeleton-card {
-  display: flex;
-  gap: 12px;
-  background: var(--bg-card);
-  border-radius: var(--radius);
-  padding: 14px 12px;
-  margin-bottom: 8px;
+  object-fit: cover; display: block;
   border: 1px solid var(--border);
 }
-.sk-body { flex: 1; display: flex; flex-direction: column; gap: 8px; padding-top: 2px; }
+.card-img--empty { background: var(--bg-elevated); }
+
+/* skeleton */
+.skeleton-card {
+  display: flex; gap: 12px;
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 13px 12px; margin-bottom: 6px;
+  border: 1px solid var(--border);
+}
+.sk-body { flex: 1; display: flex; flex-direction: column; gap: 7px; padding-top: 2px; }
 .sk-line {
-  background: linear-gradient(90deg, var(--border) 25%, #E4E0D8 50%, var(--border) 75%);
+  background: linear-gradient(90deg, var(--border) 25%, var(--bg-elevated) 50%, var(--border) 75%);
   background-size: 400% 100%;
   animation: shimmer 1.5s infinite;
-  border-radius: 4px;
+  border-radius: 3px;
 }
-.sk-title { height: 16px; }
-.sk-title-short { width: 70%; }
-.sk-meta { height: 11px; width: 55%; margin-top: 4px; }
+.sk-eyebrow { height: 8px; width: 40px; border-radius: 3px; background: var(--border); }
+.sk-title { height: 14px; }
+.sk-short { width: 65%; }
+.sk-meta { height: 10px; width: 50%; margin-top: 2px; }
 .sk-img {
-  width: 96px; height: 70px;
+  width: 88px; height: 64px;
   border-radius: var(--radius-sm);
-  background: linear-gradient(90deg, var(--border) 25%, #E4E0D8 50%, var(--border) 75%);
+  background: linear-gradient(90deg, var(--border) 25%, var(--bg-elevated) 50%, var(--border) 75%);
   background-size: 400% 100%;
   animation: shimmer 1.5s infinite;
   flex-shrink: 0;
 }
 @keyframes shimmer { 0% { background-position: 100% 0 } 100% { background-position: -100% 0 } }
 
-/* 加载指示 */
-.load-indicator {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 5px;
-  padding: 20px 0;
-}
+/* load state */
+.load-indicator { display: flex; justify-content: center; gap: 5px; padding: 20px 0; }
 .load-dot {
-  width: 6px; height: 6px;
-  background: var(--brand);
-  border-radius: 50%;
-  animation: bounce 1s infinite;
+  width: 5px; height: 5px;
+  background: var(--brand); border-radius: 50%;
+  animation: bounce 0.9s infinite;
 }
 .load-dot:nth-child(2) { animation-delay: 0.15s; }
 .load-dot:nth-child(3) { animation-delay: 0.3s; }
-@keyframes bounce {
-  0%, 100% { transform: scaleY(0.5); opacity: 0.4; }
-  50% { transform: scaleY(1.2); opacity: 1; }
-}
+@keyframes bounce { 0%, 100% { transform: scaleY(0.4); opacity: 0.3; } 50% { transform: scaleY(1.2); opacity: 1; } }
 
 .no-more {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 20px 0 8px;
-  font-size: 12px;
-  color: var(--text-muted);
-  letter-spacing: 1px;
+  display: flex; align-items: center; justify-content: center;
+  gap: 10px; padding: 20px 0 8px;
 }
-.no-more-line {
-  flex: 1;
-  height: 1px;
-  background: var(--border);
-  max-width: 60px;
+.no-more-text {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; color: var(--text-muted); letter-spacing: 3px;
 }
-
+.no-more-line { flex: 1; height: 1px; background: var(--border); max-width: 50px; }
 .dot { color: var(--border-strong); }
 </style>
