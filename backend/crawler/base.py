@@ -33,8 +33,8 @@ async def save_news(db: AsyncSession, *, title: str, description: str = '',
     # 翻译（并发调用三个字段，失败不影响入库）
     title_zh, description_zh, content_zh = await _translate_fields(title, description, content)
 
-    await db.execute(text("""
-        INSERT INTO news
+    insert_result = await db.execute(text("""
+        INSERT IGNORE INTO news
             (title, description, content, image, author,
              category_id, source_platform, source_url,
              content_hash, publish_time,
@@ -60,7 +60,7 @@ async def save_news(db: AsyncSession, *, title: str, description: str = '',
         "content_zh": content_zh or None,
     })
     await db.commit()
-    return True
+    return insert_result.rowcount > 0
 
 
 async def _translate_fields(title: str, description: str, content: str):
@@ -73,4 +73,3 @@ async def _translate_fields(title: str, description: str, content: str):
         return_exceptions=True,
     )
     return tuple(r if isinstance(r, str) else "" for r in results)
-

@@ -31,13 +31,60 @@ function formatViews(v: number): string {
   return v >= 10000 ? `${(v / 10000).toFixed(1)}万` : String(v)
 }
 
+function escapeHtml(raw: string): string {
+  return raw
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function sanitizeHtml(raw: string): string {
+  const doc = new DOMParser().parseFromString(raw, 'text/html')
+  const allowedTags = new Set(['A', 'P', 'BR', 'STRONG', 'EM', 'B', 'I', 'UL', 'OL', 'LI', 'H2', 'H3', 'H4', 'BLOCKQUOTE', 'CODE', 'PRE', 'IMG'])
+  const allowedAttrs: Record<string, Set<string>> = {
+    A: new Set(['href', 'title', 'target', 'rel']),
+    IMG: new Set(['src', 'alt', 'title']),
+  }
+  const safeUrl = (value: string) => {
+    try {
+      const url = new URL(value, window.location.origin)
+      return ['http:', 'https:', 'mailto:'].includes(url.protocol)
+    } catch {
+      return false
+    }
+  }
+  const clean = (node: Node) => {
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const el = node as HTMLElement
+      if (!allowedTags.has(el.tagName)) {
+        el.replaceWith(document.createTextNode(el.textContent || ''))
+        return
+      }
+      Array.from(el.attributes).forEach((attr) => {
+        const name = attr.name.toLowerCase()
+        const tagAttrs = allowedAttrs[el.tagName] || new Set<string>()
+        if (!tagAttrs.has(name) || name.startsWith('on')) el.removeAttribute(attr.name)
+        if ((name === 'href' || name === 'src') && !safeUrl(attr.value)) el.removeAttribute(attr.name)
+      })
+      if (el.tagName === 'A' && el.hasAttribute('href')) {
+        el.setAttribute('target', '_blank')
+        el.setAttribute('rel', 'noopener')
+      }
+    }
+    Array.from(node.childNodes).forEach(clean)
+  }
+  Array.from(doc.body.childNodes).forEach(clean)
+  return doc.body.innerHTML
+}
+
 function renderContent(raw: string): string {
   if (!raw) return ''
-  // 已是 HTML（含标签）则直接返回，让浏览器渲染原有结构
-  if (/<[a-z][\s\S]*>/i.test(raw)) return raw
+  if (/<[a-z][\s\S]*>/i.test(raw)) return sanitizeHtml(raw)
   // 纯文本：按空行分段落，单换行转 <br>
   return raw.split(/\n{2,}/)
-    .map(p => `<p>${p.trim().replace(/\n/g, '<br>')}</p>`)
+    .map(p => `<p>${escapeHtml(p.trim()).replace(/\n/g, '<br>')}</p>`)
     .filter(p => p !== '<p></p>')
     .join('')
 }

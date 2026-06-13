@@ -16,14 +16,20 @@ from utils.response import http_exception_handler, validation_exception_handler
 
 FETCH_INTERVAL = 2 * 60 * 60  # 2小时
 TOKEN_CLEANUP_INTERVAL = 24 * 60 * 60  # 24小时
+FETCH_LOCK = asyncio.Lock()
 
 
 async def _run_fetch():
+    if FETCH_LOCK.locked():
+        print("[scheduler] 已有采集任务在运行，跳过本次触发")
+        return False
     from crawler.rss_fetcher import fetch_all_rss
     from crawler.hn_fetcher import fetch_hn
-    async with AsyncSessionLocal() as db:
-        await fetch_all_rss(db)
-        await fetch_hn(db)
+    async with FETCH_LOCK:
+        async with AsyncSessionLocal() as db:
+            await fetch_all_rss(db)
+            await fetch_hn(db)
+    return True
 
 
 async def _scheduler_loop():

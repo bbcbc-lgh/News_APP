@@ -3,11 +3,12 @@ from config.env import get
 
 # 数据库连接 URL，从环境变量读取，避免密码硬编码到代码里
 ASYNC_DATABASE_URL = get("DATABASE_URL", "mysql+aiomysql://root:password@localhost:3306/news_app?charset=utf8mb4")
+SQL_ECHO = get("SQL_ECHO", "false").lower() in {"1", "true", "yes", "on"}
 
 # 创建异步引擎
 async_engine = create_async_engine(
     ASYNC_DATABASE_URL,
-    echo=True,
+    echo=SQL_ECHO,
     pool_size=10,
     max_overflow=10,
 )

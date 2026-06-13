@@ -1,11 +1,9 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, watch, ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
 import { useNewsStore } from '@/stores/newsStore'
 import { newsApi, type NewsItem } from '@/api/news'
 
 const news = useNewsStore()
-const router = useRouter()
 const refreshing = ref(false)
 const refreshDone = ref(false)
 const sentinel = ref<HTMLElement | null>(null)
@@ -216,7 +214,7 @@ watch(sentinel, () => setupObserver())
       </div>
 
       <template v-if="displayList.length > 0">
-        <article class="news-card news-card--hero" @click="router.push(`/news/detail/${displayList[0].id}`)">
+        <RouterLink class="news-card news-card--hero" :to="`/news/detail/${displayList[0].id}`">
           <img v-if="displayList[0].image" :src="displayList[0].image" class="hero-img" loading="lazy" />
           <div v-else class="hero-img hero-img--empty" :style="{ background: sourceMeta(displayList[0].source_platform || '').bg }">
             <span class="placeholder-label">{{ sourceMeta(displayList[0].source_platform || '').label }}</span>
@@ -234,13 +232,13 @@ watch(sentinel, () => setupObserver())
               <span>{{ timeAgo(displayList[0].publish_time) }}</span>
             </div>
           </div>
-        </article>
+        </RouterLink>
 
-        <article
+        <RouterLink
           v-for="(item, idx) in displayList.slice(1)"
           :key="item.id"
           class="news-card"
-          @click="router.push(`/news/detail/${item.id}`)"
+          :to="`/news/detail/${item.id}`"
         >
           <div class="card-index">{{ String(idx + 2).padStart(2, '0') }}</div>
           <div class="card-body">
@@ -262,7 +260,7 @@ watch(sentinel, () => setupObserver())
               <span class="placeholder-label small">{{ sourceMeta(item.source_platform || '').label }}</span>
             </div>
           </div>
-        </article>
+        </RouterLink>
       </template>
 
       <div v-if="(searchActive ? searchLoading : news.loading) && displayList.length" class="load-indicator">
@@ -337,6 +335,19 @@ watch(sentinel, () => setupObserver())
   transition: max-height 0.2s, opacity 0.2s;
 }
 .source-strip.hidden { max-height: 0; opacity: 0; overflow: hidden; border-bottom: none; }
+.source-strip::after {
+  content: '';
+  position: sticky;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  float: right;
+  width: 28px;
+  height: 40px;
+  margin-top: -40px;
+  background: linear-gradient(90deg, rgba(255,255,255,0), var(--bg-card));
+  pointer-events: none;
+}
 .source-strip::-webkit-scrollbar { display: none; }
 .source-chips { display: flex; padding: 8px 12px; gap: 6px; width: max-content; min-width: 100%; }
 
@@ -425,8 +436,13 @@ watch(sentinel, () => setupObserver())
   display: flex; gap: 10px; align-items: stretch; cursor: pointer;
   margin-bottom: 6px; transition: background 0.15s; border: 1px solid var(--border);
   height: 96px; overflow: hidden;
+  color: inherit; text-decoration: none;
 }
 .news-card:active { background: var(--bg-hover); }
+.news-card:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
 .card-index {
   font-family: 'JetBrains Mono', monospace; font-size: 11px;
   color: var(--text-muted); flex-shrink: 0; padding-top: 3px; min-width: 22px;
