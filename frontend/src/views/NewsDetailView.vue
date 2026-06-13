@@ -151,7 +151,7 @@ watch(() => route.params.id, loadDetail)
 </template>
 
 <style scoped>
-.detail-page { min-height: 100vh; background: var(--bg); }
+.detail-page { min-height: 100%; background: var(--bg); width: 100%; }
 
 .top-bar {
   position: sticky; top: 0; z-index: 10; height: 52px;

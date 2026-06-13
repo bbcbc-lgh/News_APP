@@ -260,7 +260,7 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.profile-page { min-height: 100vh; background: var(--bg); }
+.profile-page { min-height: 100%; background: var(--bg); width: 100%; }
 
 .top-bar {
   height: 52px; background: var(--bg-card);
