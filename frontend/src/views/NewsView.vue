@@ -270,8 +270,9 @@ function onScroll(e: Event) {
 
 .news-card {
   background: var(--bg-card); border-radius: var(--radius); padding: 13px 12px;
-  display: flex; gap: 10px; align-items: flex-start; cursor: pointer;
+  display: flex; gap: 10px; align-items: stretch; cursor: pointer;
   margin-bottom: 6px; transition: background 0.15s; border: 1px solid var(--border);
+  min-height: 96px;
 }
 .news-card:active { background: var(--bg-hover); }
 .card-index {
@@ -291,7 +292,7 @@ function onScroll(e: Event) {
 .card-meta { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .card-meta span { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); }
 .meta-dot { color: var(--border-strong); }
-.card-right { flex-shrink: 0; }
+.card-right { flex-shrink: 0; display: flex; align-items: flex-start; }
 .card-img {
   width: 88px; height: 64px; border-radius: var(--radius-sm);
   object-fit: cover; display: block; border: 1px solid var(--border);
