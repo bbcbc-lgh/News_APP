@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, watch, ref } from 'vue'
+import { onMounted, onUnmounted, watch, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useNewsStore } from '@/stores/newsStore'
 import { newsApi } from '@/api/news'
@@ -8,6 +8,8 @@ const news = useNewsStore()
 const router = useRouter()
 const refreshing = ref(false)
 const refreshDone = ref(false)
+const sentinel = ref<HTMLElement | null>(null)
+let observer: IntersectionObserver | null = null
 
 async function handleRefresh() {
   if (refreshing.value) return
@@ -51,19 +53,26 @@ function formatViews(v: number): string {
   return v >= 10000 ? `${(v / 10000).toFixed(1)}万` : String(v)
 }
 
+function setupObserver() {
+  if (observer) observer.disconnect()
+  observer = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting && !news.loading && news.hasMore) {
+      news.loadNews(news.activeSource)
+    }
+  }, { rootMargin: '200px' })
+  if (sentinel.value) observer.observe(sentinel.value)
+}
+
 onMounted(async () => {
   await news.loadCategories()
   if (news.newsList.length === 0) news.loadNews(news.activeSource, true)
+  setupObserver()
 })
 
-watch(() => news.activeSource, (src) => news.loadNews(src, true))
+onUnmounted(() => { observer?.disconnect() })
 
-function onScroll(e: Event) {
-  const el = e.target as HTMLElement
-  if (el.scrollHeight - el.scrollTop - el.clientHeight < 160 && !news.loading && news.hasMore) {
-    news.loadNews(news.activeSource)
-  }
-}
+watch(() => news.activeSource, (src) => news.loadNews(src, true))
+watch(sentinel, () => setupObserver())
 </script>
 
 <template>
@@ -99,7 +108,7 @@ function onScroll(e: Event) {
       </div>
     </div>
 
-    <div class="list-wrap" @scroll="onScroll">
+    <div class="list-wrap">
       <div v-if="news.newsList.length === 0 && news.loading" class="skeleton-list">
         <div v-for="i in 5" :key="i" class="skeleton-card">
           <div class="sk-body">
@@ -170,12 +179,13 @@ function onScroll(e: Event) {
         <span class="no-more-text">END OF FEED</span>
         <span class="no-more-line"></span>
       </div>
+      <div ref="sentinel" class="sentinel"></div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.news-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg); }
+.news-page { display: flex; flex-direction: column; min-height: 100%; background: var(--bg); width: 100%; }
 
 .top-bar {
   height: 54px; background: var(--bg-card);
@@ -238,8 +248,8 @@ function onScroll(e: Event) {
 }
 .chip.active { color: #fff; background: var(--brand); border-color: var(--brand); }
 
-.list-wrap { flex: 1; overflow-y: auto; scrollbar-width: none; padding: 10px 10px 0; }
-.list-wrap::-webkit-scrollbar { display: none; }
+.list-wrap { flex: 1; padding: 10px 10px 16px; }
+.sentinel { height: 1px; }
 
 .news-card--hero {
   position: relative; border-radius: var(--radius); overflow: hidden;
@@ -346,9 +356,7 @@ function onScroll(e: Event) {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 8px;
-    padding: 12px 24px 0;
-    max-width: 1100px;
-    margin: 0 auto;
+    padding: 12px 24px 24px;
   }
   .news-card--hero { grid-column: 1 / -1; height: 320px; }
   .skeleton-list, .load-indicator, .no-more { grid-column: 1 / -1; }
