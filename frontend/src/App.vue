@@ -16,6 +16,7 @@ const showNav = computed(() => auth.isLoggedIn && !route.meta.public)
       <RouterView />
     </div>
     <nav v-if="showNav" class="bottom-nav">
+      <div class="sidebar-logo">AI</div>
       <RouterLink to="/news" class="nav-item" active-class="active">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
@@ -147,4 +148,58 @@ body::before {
 a { text-decoration: none; color: inherit; }
 button { cursor: pointer; border: none; outline: none; background: none; font-family: inherit; }
 input, textarea, select { outline: none; font-family: inherit; }
+
+.sidebar-logo { display: none; }
+
+@media (min-width: 768px) {
+  body { padding-left: 80px; }
+
+  .page-wrap {
+    max-width: 960px;
+    padding-bottom: 0;
+  }
+
+  .bottom-nav {
+    top: 0;
+    left: 0;
+    bottom: 0;
+    transform: none;
+    width: 80px;
+    max-width: 80px;
+    height: 100vh;
+    flex-direction: column;
+    border-top: none;
+    border-right: 1px solid var(--border);
+    padding: 20px 0;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .sidebar-logo {
+    display: flex;
+    width: 36px; height: 36px;
+    background: var(--brand); color: #fff;
+    font-family: 'Libre Baskerville', serif; font-size: 12px; font-weight: 700;
+    align-items: center; justify-content: center;
+    border-radius: 7px; margin-bottom: 16px; flex-shrink: 0;
+  }
+
+  .nav-item {
+    flex: none;
+    width: 100%;
+    height: 56px;
+    padding: 0;
+    border-radius: 0;
+  }
+
+  .nav-item::after { display: none; }
+
+  .nav-item.active {
+    background: var(--brand-dim);
+    color: var(--brand);
+  }
+
+  .nav-label { display: none; }
+}
 </style>

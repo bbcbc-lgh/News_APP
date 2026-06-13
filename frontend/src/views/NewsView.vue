@@ -303,4 +303,18 @@ function onScroll(e: Event) {
 .no-more-text { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); letter-spacing: 3px; }
 .no-more-line { flex: 1; height: 1px; background: var(--border); max-width: 50px; }
 .dot { color: var(--border-strong); }
+
+@media (min-width: 768px) {
+  .list-wrap {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 12px 20px 0;
+    align-items: start;
+  }
+  .news-card--hero { grid-column: 1 / -1; height: 300px; }
+  .skeleton-list, .load-indicator, .no-more { grid-column: 1 / -1; }
+  .top-bar { padding: 0 24px; }
+  .source-chips { padding: 8px 20px; }
+}
 </style>

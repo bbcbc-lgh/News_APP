@@ -54,10 +54,15 @@ async def get_detail(news_id: int = Query(..., alias="id"), db: AsyncSession = D
     return success_response({
             "id": news_detail.id,
             "title": news_detail.title,
+            "titleZh": news_detail.title_zh,
+            "description": news_detail.description,
+            "descriptionZh": news_detail.description_zh,
             "content": news_detail.content,
+            "contentZh": news_detail.content_zh,
             "image": news_detail.image,
             "author": news_detail.author,
             "source": news_detail.source_platform,
+            "sourceUrl": news_detail.source_url,
             "publishTime": news_detail.publish_time,
             "views": news_detail.views,
             "relatedNews": related_news

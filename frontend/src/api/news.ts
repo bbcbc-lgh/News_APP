@@ -19,10 +19,15 @@ export interface NewsItem {
 export interface NewsDetail {
   id: number
   title: string
+  titleZh: string | null
+  description: string | null
+  descriptionZh: string | null
   content: string
+  contentZh: string | null
   image: string | null
   author: string | null
   source: string | null
+  sourceUrl: string | null
   publishTime: string
   views: number
   relatedNews: NewsItem[]

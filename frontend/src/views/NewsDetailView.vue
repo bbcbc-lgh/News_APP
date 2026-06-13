@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { newsApi, type NewsDetail } from '@/api/news'
 import { favoriteApi } from '@/api/favorite'
@@ -41,15 +41,22 @@ async function toggleFav() {
   } finally { favLoading.value = false }
 }
 
-onMounted(async () => {
+async function loadDetail() {
   const id = Number(route.params.id)
+  loading.value = true
+  error.value = ''
+  detail.value = null
+  isFav.value = false
   try {
     const [d, fav] = await Promise.allSettled([newsApi.getDetail(id), favoriteApi.check(id)])
     if (d.status === 'fulfilled') { detail.value = d.value; historyApi.add(id).catch(() => {}) }
     else { error.value = '加载失败' }
     if (fav.status === 'fulfilled') isFav.value = fav.value.isFavorite
   } finally { loading.value = false }
-})
+}
+
+onMounted(loadDetail)
+watch(() => route.params.id, loadDetail)
 </script>
 
 <template>
@@ -90,7 +97,7 @@ onMounted(async () => {
             :style="{ color: sourceMeta(detail.source).color, borderColor: sourceMeta(detail.source).color }">
             {{ sourceMeta(detail.source).label }}
           </div>
-          <h1 class="article-title">{{ detail.title }}</h1>
+          <h1 class="article-title">{{ detail.titleZh || detail.title }}</h1>
           <div class="article-meta">
             <span class="meta-author">{{ detail.author || '未知来源' }}</span>
             <span class="meta-sep">·</span>
@@ -106,7 +113,14 @@ onMounted(async () => {
           <span class="divider-line"></span>
         </div>
 
-        <div class="article-text" v-html="detail.content.replace(/\n/g, '<br>')"></div>
+        <div class="article-text" v-html="(detail.contentZh || detail.descriptionZh || detail.content || detail.description || '').replace(/\n/g, '<br>')"></div>
+
+        <a v-if="detail.sourceUrl" :href="detail.sourceUrl" target="_blank" rel="noopener" class="source-link">
+          <span>阅读原文</span>
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+            <path d="M2 11L11 2M11 2H5M11 2V8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </a>
       </div>
 
       <div v-if="detail.relatedNews?.length" class="related-section">
@@ -172,6 +186,14 @@ onMounted(async () => {
 
 .article-text { font-size: 15px; line-height: 1.95; color: var(--text-primary); letter-spacing: 0.3px; }
 
+.source-link {
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 20px;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500;
+  color: var(--brand); letter-spacing: 1px; border-bottom: 1px solid var(--brand);
+  padding-bottom: 1px; transition: opacity 0.15s;
+}
+.source-link:hover { opacity: 0.7; }
+
 .related-section { margin-top: 8px; padding: 0 18px 16px; border-top: 1px solid var(--border); }
 .related-header { padding: 16px 0 10px; }
 .related-eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 500; letter-spacing: 3px; color: var(--brand); }
@@ -186,4 +208,11 @@ onMounted(async () => {
 
 .spinner { width: 28px; height: 28px; border: 2px solid var(--border); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg) } }
+
+@media (min-width: 768px) {
+  .article-body { max-width: 700px; margin: 0 auto; padding: 32px 24px 8px; }
+  .cover-img { max-height: 420px; }
+  .article-title { font-size: 26px; }
+  .related-section { max-width: 700px; margin: 8px auto 0; padding: 0 0 16px; }
+}
 </style>
