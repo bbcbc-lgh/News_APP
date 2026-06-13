@@ -20,7 +20,9 @@ async def save_news(db: AsyncSession, *, title: str, description: str = '',
     将一条新闻写入数据库，通过 content_hash 去重。
     返回 True 表示新插入，False 表示已存在跳过。
     """
-    hash_val = md5(title)
+    # 优先用 URL 去重，URL 为空时 fallback 到标题
+    hash_input = source_url.strip() if source_url and source_url.strip() else title
+    hash_val = md5(hash_input)
     result = await db.execute(
         text("SELECT id FROM news WHERE content_hash = :h"),
         {"h": hash_val}
@@ -67,8 +69,3 @@ async def _translate_fields(title: str, description: str, content: str):
     results = await asyncio.gather(
         translate_to_zh(title, "title"),
         translate_to_zh(description, "description"),
-        translate_to_zh(content, "content"),
-        return_exceptions=True,
-    )
-    return tuple(r if isinstance(r, str) else "" for r in results)
-

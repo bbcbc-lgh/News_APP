@@ -2,6 +2,7 @@
 Hacker News 采集器，通过官方 Firebase JSON API 获取 AI 相关文章
 """
 import re
+import asyncio
 import httpx
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -75,39 +76,41 @@ async def _fetch_page_content(client: httpx.AsyncClient, url: str) -> tuple[str,
         return "", ""
 
 
+CONCURRENCY = 15  # 并发拉取上限，避免触发限流
+
+
+async def _process_item(client: httpx.AsyncClient, db: AsyncSession, item_id: int, sem: asyncio.Semaphore) -> bool:
+    """拉取单条 story 并入库，返回是否新增"""
+    async with sem:
+        item = await _get_item(client, item_id)
+        if not item or item.get("type") != "story":
+            return False
+        title = (item.get("title") or "").strip()
+        url = item.get("url", "")
+        if not title or not is_ai_related(title):
+            return False
+        pub_time = datetime.fromtimestamp(item["time"]) if item.get("time") else datetime.now()
+        image, content = await _fetch_page_content(client, url)
+        return await save_news(
+            db,
+            title=title,
+            description="",
+            content=content,
+            image=image,
+            author=item.get("by", ""),
+            source_url=url,
+            source_platform="hackernews",
+            publish_time=pub_time,
+            category_id=1,
+        )
+
+
 async def fetch_hn(db: AsyncSession) -> int:
-    """采集 Hacker News 热门中的 AI 相关文章，返回新增条数"""
+    """采集 Hacker News 热门中的 AI 相关文章，并发拉取，返回新增条数"""
     count = 0
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             ids = await _get_top_ids(client)
-            for item_id in ids:
-                item = await _get_item(client, item_id)
-                if not item:
-                    continue
-                if item.get("type") != "story":
-                    continue
-                title = (item.get("title") or "").strip()
-                url = item.get("url", "")
-                if not title or not is_ai_related(title):
-                    continue
-                pub_time = datetime.fromtimestamp(item["time"]) if item.get("time") else datetime.now()
-                image, content = await _fetch_page_content(client, url)
-                saved = await save_news(
-                    db,
-                    title=title,
-                    description=f"HN 评论数：{item.get('descendants', 0)}",
-                    content=content,
-                    image=image,
-                    author=item.get("by", ""),
-                    source_url=url,
-                    source_platform="hackernews",
-                    publish_time=pub_time,
-                    category_id=1,
-                )
-                if saved:
-                    count += 1
-    except Exception as e:
-        print(f"[hackernews] 采集失败: {e}")
-    print(f"[hackernews] 新增 {count} 条")
-    return count
+            sem = asyncio.Semaphore(CONCURRENCY)
+            tasks = [_process_item(client, db, item_id, sem) for item_id in ids]
+            results = await asyncio.gather(*tasks, return_e

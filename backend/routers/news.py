@@ -99,12 +99,13 @@ async def search(
             {
                 "id": n.id,
                 "title": n.title,
+                "title_zh": n.title_zh,
                 "description": n.description,
                 "image": n.image,
                 "author": n.author,
-                "publishTime": n.publish_time,
-                "categoryId": n.category_id,
+                "source_platform": n.source_platform,
                 "views": n.views,
+                "publish_time": str(n.publish_time),
             }
             for n in results
         ],
@@ -118,4 +119,4 @@ async def search(
 async def refresh(background_tasks: BackgroundTasks):
     from main import _run_fetch
     background_tasks.add_task(_run_fetch)
-    return success_response(None, "采集任务已启动，请稍后刷新")
+    return success_r

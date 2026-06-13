@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, watch, ref } from 'vue'
+import { onMounted, onUnmounted, watch, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useNewsStore } from '@/stores/newsStore'
-import { newsApi } from '@/api/news'
+import { newsApi, type NewsItem } from '@/api/news'
 
 const news = useNewsStore()
 const router = useRouter()
@@ -10,6 +10,57 @@ const refreshing = ref(false)
 const refreshDone = ref(false)
 const sentinel = ref<HTMLElement | null>(null)
 let observer: IntersectionObserver | null = null
+
+// 搜索状态
+const searchQuery = ref('')
+const searchActive = ref(false)
+const searchResults = ref<NewsItem[]>([])
+const searchLoading = ref(false)
+const searchPage = ref(1)
+const searchHasMore = ref(false)
+const searchTotal = ref(0)
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+
+async function doSearch(reset = false) {
+  const q = searchQuery.value.trim()
+  if (!q) {
+    exitSearch()
+    return
+  }
+  if (reset) {
+    searchResults.value = []
+    searchPage.value = 1
+    searchHasMore.value = false
+  }
+  searchLoading.value = true
+  try {
+    const res = await newsApi.search(q, searchPage.value)
+    searchResults.value = reset ? res.list : [...searchResults.value, ...res.list]
+    searchTotal.value = res.total
+    searchHasMore.value = res.hasMore
+    searchPage.value++
+  } finally {
+    searchLoading.value = false
+  }
+}
+
+function onSearchInput() {
+  if (searchTimer) clearTimeout(searchTimer)
+  const q = searchQuery.value.trim()
+  if (!q) { exitSearch(); return }
+  searchActive.value = true
+  searchTimer = setTimeout(() => doSearch(true), 400)
+}
+
+function exitSearch() {
+  searchActive.value = false
+  searchQuery.value = ''
+  searchResults.value = []
+  searchPage.value = 1
+  searchHasMore.value = false
+}
+
+const displayList = computed(() => searchActive.value ? searchResults.value : news.newsList)
 
 async function handleRefresh() {
   if (refreshing.value) return
@@ -56,8 +107,11 @@ function formatViews(v: number): string {
 function setupObserver() {
   if (observer) observer.disconnect()
   observer = new IntersectionObserver((entries) => {
-    if (entries[0].isIntersecting && !news.loading && news.hasMore) {
-      news.loadNews(news.activeSource)
+    if (!entries[0].isIntersecting) return
+    if (searchActive.value) {
+      if (!searchLoading.value && searchHasMore.value) doSearch()
+    } else {
+      if (!news.loading && news.hasMore) news.loadNews(news.activeSource)
     }
   }, { rootMargin: '200px' })
   if (sentinel.value) observer.observe(sentinel.value)
@@ -97,7 +151,7 @@ watch(sentinel, () => setupObserver())
       </div>
     </header>
 
-    <div class="source-strip">
+    <div class="source-strip" :class="{ hidden: searchActive }">
       <div class="source-chips">
         <button
           v-for="cat in news.categories"
@@ -108,8 +162,48 @@ watch(sentinel, () => setupObserver())
       </div>
     </div>
 
+    <div class="search-bar" :style="{ top: searchActive ? '54px' : 'calc(54px + 44px)' }">
+      <div class="search-inner">
+        <svg class="search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none">
+          <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <input
+          v-model="searchQuery"
+          class="search-input"
+          placeholder="搜索文章…"
+          @input="onSearchInput"
+          @keydown.escape="exitSearch"
+        />
+        <button v-if="searchActive" class="search-clear" @click="exitSearch">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M2 2L10 10M10 2L2 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div v-if="searchActive && searchTotal > 0" class="search-meta">
+        <span class="search-count">{{ searchTotal }} 条结果</span>
+      </div>
+    </div>
+
     <div class="list-wrap">
-      <div v-if="news.newsList.length === 0 && news.loading" class="skeleton-list">
+      <div v-if="searchActive && searchLoading && searchResults.length === 0" class="skeleton-list">
+        <div v-for="i in 3" :key="i" class="skeleton-card">
+          <div class="sk-body">
+            <div class="sk-eyebrow"></div>
+            <div class="sk-line sk-title"></div>
+            <div class="sk-line sk-title sk-short"></div>
+            <div class="sk-line sk-meta"></div>
+          </div>
+          <div class="sk-img"></div>
+        </div>
+      </div>
+
+      <div v-else-if="searchActive && !searchLoading && searchResults.length === 0" class="no-result">
+        <span class="no-result-text">未找到 "{{ searchQuery }}" 相关内容</span>
+      </div>
+
+      <div v-if="!searchActive && news.newsList.length === 0 && news.loading" class="skeleton-list">
         <div v-for="i in 5" :key="i" class="skeleton-card">
           <div class="sk-body">
             <div class="sk-eyebrow"></div>
@@ -121,29 +215,29 @@ watch(sentinel, () => setupObserver())
         </div>
       </div>
 
-      <template v-if="news.newsList.length > 0">
-        <article class="news-card news-card--hero" @click="router.push(`/news/detail/${news.newsList[0].id}`)">
-          <img v-if="news.newsList[0].image" :src="news.newsList[0].image" class="hero-img" loading="lazy" />
-          <div v-else class="hero-img hero-img--empty" :style="{ background: sourceMeta(news.newsList[0].source_platform || '').bg }">
-            <span class="placeholder-label">{{ sourceMeta(news.newsList[0].source_platform || '').label }}</span>
+      <template v-if="displayList.length > 0">
+        <article class="news-card news-card--hero" @click="router.push(`/news/detail/${displayList[0].id}`)">
+          <img v-if="displayList[0].image" :src="displayList[0].image" class="hero-img" loading="lazy" />
+          <div v-else class="hero-img hero-img--empty" :style="{ background: sourceMeta(displayList[0].source_platform || '').bg }">
+            <span class="placeholder-label">{{ sourceMeta(displayList[0].source_platform || '').label }}</span>
           </div>
           <div class="hero-overlay">
-            <div class="hero-source-badge" :style="{ '--src-color': sourceMeta(news.newsList[0].source_platform || '').color }">
-              {{ sourceMeta(news.newsList[0].source_platform || '').label }}
+            <div class="hero-source-badge" :style="{ '--src-color': sourceMeta(displayList[0].source_platform || '').color }">
+              {{ sourceMeta(displayList[0].source_platform || '').label }}
             </div>
-            <h2 class="hero-title">{{ news.newsList[0].title_zh || news.newsList[0].title }}</h2>
+            <h2 class="hero-title">{{ displayList[0].title_zh || displayList[0].title }}</h2>
             <div class="hero-meta">
-              <span>{{ news.newsList[0].author || '未知' }}</span>
+              <span>{{ displayList[0].author || '未知' }}</span>
               <span class="dot">·</span>
-              <span>{{ formatViews(news.newsList[0].views) }} reads</span>
+              <span>{{ formatViews(displayList[0].views) }} reads</span>
               <span class="dot">·</span>
-              <span>{{ timeAgo(news.newsList[0].publish_time) }}</span>
+              <span>{{ timeAgo(displayList[0].publish_time) }}</span>
             </div>
           </div>
         </article>
 
         <article
-          v-for="(item, idx) in news.newsList.slice(1)"
+          v-for="(item, idx) in displayList.slice(1)"
           :key="item.id"
           class="news-card"
           @click="router.push(`/news/detail/${item.id}`)"
@@ -171,12 +265,17 @@ watch(sentinel, () => setupObserver())
         </article>
       </template>
 
-      <div v-if="news.loading && news.newsList.length" class="load-indicator">
+      <div v-if="(searchActive ? searchLoading : news.loading) && displayList.length" class="load-indicator">
         <span class="load-dot" v-for="i in 3" :key="i"></span>
       </div>
-      <div v-if="!news.hasMore && news.newsList.length" class="no-more">
+      <div v-if="!searchActive && !news.hasMore && news.newsList.length" class="no-more">
         <span class="no-more-line"></span>
         <span class="no-more-text">END OF FEED</span>
+        <span class="no-more-line"></span>
+      </div>
+      <div v-if="searchActive && !searchHasMore && searchResults.length" class="no-more">
+        <span class="no-more-line"></span>
+        <span class="no-more-text">END OF RESULTS</span>
         <span class="no-more-line"></span>
       </div>
       <div ref="sentinel" class="sentinel"></div>
@@ -235,9 +334,52 @@ watch(sentinel, () => setupObserver())
   background: var(--bg-card); border-bottom: 1px solid var(--border);
   position: sticky; top: 54px; z-index: 9; flex-shrink: 0;
   overflow-x: auto; scrollbar-width: none;
+  transition: max-height 0.2s, opacity 0.2s;
 }
+.source-strip.hidden { max-height: 0; opacity: 0; overflow: hidden; border-bottom: none; }
 .source-strip::-webkit-scrollbar { display: none; }
 .source-chips { display: flex; padding: 8px 12px; gap: 6px; width: max-content; min-width: 100%; }
+
+.search-bar {
+  background: var(--bg-card); border-bottom: 1px solid var(--border);
+  position: sticky; z-index: 8; flex-shrink: 0;
+  padding: 8px 12px; transition: top 0.2s;
+}
+.search-inner {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: 20px; padding: 7px 12px;
+  transition: border-color 0.18s, box-shadow 0.18s;
+}
+.search-inner:focus-within {
+  border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-dim);
+}
+.search-icon { color: var(--text-muted); flex-shrink: 0; }
+.search-input {
+  flex: 1; background: transparent; border: none;
+  font-family: 'Noto Sans SC', sans-serif; font-size: 13px;
+  color: var(--text-primary); min-width: 0;
+}
+.search-input::placeholder { color: var(--text-muted); }
+.search-clear {
+  color: var(--text-muted); display: flex; align-items: center;
+  padding: 2px; border-radius: 50%; transition: color 0.15s;
+}
+.search-clear:hover { color: var(--text-primary); }
+.search-meta { padding: 4px 2px 0; }
+.search-count {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  color: var(--brand); letter-spacing: 0.5px;
+}
+
+.no-result {
+  display: flex; align-items: center; justify-content: center;
+  padding: 48px 20px;
+}
+.no-result-text {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  color: var(--text-muted); letter-spacing: 1px;
+}
 
 .chip {
   flex-shrink: 0; padding: 5px 13px;
@@ -257,110 +399,4 @@ watch(sentinel, () => setupObserver())
   background: var(--bg-elevated); border: 1px solid var(--border);
 }
 .hero-img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.hero-img--empty { background: var(--bg-elevated); }
-.hero-overlay {
-  position: absolute; inset: 0;
-  background: linear-gradient(to top, rgba(26,22,18,0.85) 0%, rgba(26,22,18,0.2) 55%, transparent 100%);
-  padding: 14px; display: flex; flex-direction: column; justify-content: flex-end;
-}
-.hero-source-badge {
-  font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 500;
-  letter-spacing: 2px; color: var(--src-color, var(--brand));
-  background: rgba(247,244,239,0.15); border: 1px solid var(--src-color, var(--brand));
-  padding: 2px 8px; border-radius: 3px;
-  display: inline-block; align-self: flex-start; margin-bottom: 8px;
-}
-.hero-title {
-  font-family: 'Noto Serif SC', serif; font-size: 17px; font-weight: 700;
-  color: #fff; line-height: 1.5; margin-bottom: 8px;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-}
-.hero-meta { display: flex; align-items: center; gap: 5px; }
-.hero-meta span { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: rgba(247,244,239,0.7); }
-
-.news-card {
-  background: var(--bg-card); border-radius: var(--radius); padding: 13px 12px;
-  display: flex; gap: 10px; align-items: stretch; cursor: pointer;
-  margin-bottom: 6px; transition: background 0.15s; border: 1px solid var(--border);
-  height: 96px; overflow: hidden;
-}
-.news-card:active { background: var(--bg-hover); }
-.card-index {
-  font-family: 'JetBrains Mono', monospace; font-size: 11px;
-  color: var(--text-muted); flex-shrink: 0; padding-top: 3px; min-width: 22px;
-}
-.card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-.card-source {
-  font-family: 'JetBrains Mono', monospace; font-size: 9px;
-  font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase;
-}
-.card-title {
-  font-family: 'Noto Serif SC', serif; font-size: 14px; font-weight: 600;
-  line-height: 1.55; color: var(--text-primary);
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-  flex: 1;
-}
-.card-meta { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: auto; }
-.card-meta span { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); }
-.meta-dot { color: var(--border-strong); }
-.card-right { flex-shrink: 0; display: flex; align-items: center; }
-.card-img {
-  width: 88px; height: 64px; border-radius: var(--radius-sm);
-  object-fit: cover; display: block; border: 1px solid var(--border);
-}
-.card-img--empty { background: var(--bg-elevated); display: flex; align-items: center; justify-content: center; }
-.hero-img--empty { display: flex; align-items: center; justify-content: center; }
-.placeholder-label {
-  font-family: 'JetBrains Mono', monospace; font-weight: 500;
-  font-size: 13px; letter-spacing: 1px; opacity: 0.5; color: var(--text-primary);
-}
-.placeholder-label.small { font-size: 9px; letter-spacing: 0.5px; }
-
-.skeleton-card {
-  display: flex; gap: 12px; background: var(--bg-card); border-radius: var(--radius);
-  padding: 13px 12px; margin-bottom: 6px; border: 1px solid var(--border);
-}
-.sk-body { flex: 1; display: flex; flex-direction: column; gap: 7px; padding-top: 2px; }
-.sk-line {
-  background: linear-gradient(90deg, var(--border) 25%, var(--bg-elevated) 50%, var(--border) 75%);
-  background-size: 400% 100%; animation: shimmer 1.5s infinite; border-radius: 3px;
-}
-.sk-eyebrow { height: 8px; width: 40px; border-radius: 3px; background: var(--border); }
-.sk-title { height: 14px; }
-.sk-short { width: 65%; }
-.sk-meta { height: 10px; width: 50%; margin-top: 2px; }
-.sk-img {
-  width: 88px; height: 64px; border-radius: var(--radius-sm); flex-shrink: 0;
-  background: linear-gradient(90deg, var(--border) 25%, var(--bg-elevated) 50%, var(--border) 75%);
-  background-size: 400% 100%; animation: shimmer 1.5s infinite;
-}
-@keyframes shimmer { 0%{background-position:100% 0} 100%{background-position:-100% 0} }
-
-.load-indicator { display: flex; justify-content: center; gap: 5px; padding: 20px 0; }
-.load-dot {
-  width: 5px; height: 5px; background: var(--brand); border-radius: 50%;
-  animation: bounce 0.9s infinite;
-}
-.load-dot:nth-child(2) { animation-delay: 0.15s; }
-.load-dot:nth-child(3) { animation-delay: 0.3s; }
-@keyframes bounce { 0%,100%{transform:scaleY(0.4);opacity:0.3} 50%{transform:scaleY(1.2);opacity:1} }
-
-.no-more { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 20px 0 8px; }
-.no-more-text { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); letter-spacing: 3px; }
-.no-more-line { flex: 1; height: 1px; background: var(--border); max-width: 50px; }
-.dot { color: var(--border-strong); }
-
-@media (min-width: 768px) {
-  .news-page { height: 100vh; }
-  .list-wrap {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-    padding: 12px 24px 24px;
-  }
-  .news-card--hero { grid-column: 1 / -1; height: 320px; }
-  .skeleton-list, .load-indicator, .no-more { grid-column: 1 / -1; }
-  .top-bar { padding: 0 24px; }
-  .source-chips { padding: 8px 24px; }
-}
-</style>
+.hero
