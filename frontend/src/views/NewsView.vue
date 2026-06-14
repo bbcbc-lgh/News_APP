@@ -117,13 +117,6 @@ function posterTopic(item: NewsItem): string {
   return 'AI NOTE'
 }
 
-function posterMark(item: NewsItem): string {
-  const title = displayTitle(item).replace(/[^\p{L}\p{N}\s]/gu, ' ').trim()
-  const words = title.split(/\s+/).filter(w => w.length > 2)
-  if (words.length) return words.slice(0, 2).join(' / ').toUpperCase()
-  return title.slice(0, 8) || sourceMeta(item.source_platform || '').label
-}
-
 function setupObserver() {
   if (observer) observer.disconnect()
   observer = new IntersectionObserver((entries) => {
@@ -236,35 +229,13 @@ watch(sentinel, () => setupObserver())
       </div>
 
       <template v-if="displayList.length > 0">
-        <RouterLink class="news-card news-card--hero" :to="`/news/detail/${displayList[0].id}`">
-          <img v-if="displayList[0].image" :src="displayList[0].image" class="hero-img" loading="lazy" />
-          <div v-else class="hero-img hero-img--poster" :style="{ '--poster-color': sourceMeta(displayList[0].source_platform || '').color }">
-            <span class="poster-kicker">{{ sourceMeta(displayList[0].source_platform || '').label }}</span>
-            <span class="poster-topic">{{ posterTopic(displayList[0]) }}</span>
-            <span class="poster-mark">{{ posterMark(displayList[0]) }}</span>
-          </div>
-          <div class="hero-overlay">
-            <div class="hero-source-badge" :style="{ '--src-color': sourceMeta(displayList[0].source_platform || '').color }">
-              {{ sourceMeta(displayList[0].source_platform || '').label }}
-            </div>
-            <h2 class="hero-title">{{ displayTitle(displayList[0]) }}</h2>
-            <div class="hero-meta">
-              <span>{{ displayList[0].author || '未知' }}</span>
-              <span class="dot">·</span>
-              <span>{{ formatViews(displayList[0].views) }} reads</span>
-              <span class="dot">·</span>
-              <span>{{ timeAgo(displayList[0].publish_time) }}</span>
-            </div>
-          </div>
-        </RouterLink>
-
         <RouterLink
-          v-for="(item, idx) in displayList.slice(1)"
+          v-for="(item, idx) in displayList"
           :key="item.id"
           class="news-card"
           :to="`/news/detail/${item.id}`"
         >
-          <div class="card-index">{{ String(idx + 2).padStart(2, '0') }}</div>
+          <div class="card-index">{{ String(idx + 1).padStart(2, '0') }}</div>
           <div class="card-body">
             <div class="card-source" :style="{ color: sourceMeta(item.source_platform || '').color }">
               {{ sourceMeta(item.source_platform || '').label }}
@@ -429,61 +400,6 @@ watch(sentinel, () => setupObserver())
 .list-wrap { flex: 1; padding: 10px 10px 16px; }
 .sentinel { height: 1px; }
 
-.news-card--hero {
-  position: relative; border-radius: var(--radius); overflow: hidden;
-  margin-bottom: 8px; cursor: pointer; height: 220px;
-  background: var(--bg-elevated); border: 1px solid var(--border);
-}
-.hero-img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.hero-img--poster {
-  display: flex; flex-direction: column; justify-content: space-between;
-  padding: 22px;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--poster-color) 18%, transparent), transparent 48%),
-    repeating-linear-gradient(0deg, rgba(26,22,18,0.045) 0 1px, transparent 1px 18px),
-    var(--bg-elevated);
-  color: var(--text-primary);
-  position: relative;
-}
-.hero-img--poster::after {
-  content: ''; position: absolute; inset: 18px;
-  border: 1px solid color-mix(in srgb, var(--poster-color) 45%, transparent);
-  border-radius: var(--radius-sm);
-}
-.poster-kicker, .poster-topic, .poster-mark { position: relative; z-index: 1; }
-.poster-kicker {
-  font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 2px;
-  color: var(--poster-color); text-transform: uppercase;
-}
-.poster-topic {
-  align-self: flex-end; font-family: 'JetBrains Mono', monospace;
-  font-size: 12px; letter-spacing: 2px; color: var(--poster-color);
-}
-.poster-mark {
-  max-width: 70%; font-family: 'Libre Baskerville', 'Noto Serif SC', serif;
-  font-size: 34px; line-height: 1.12; font-weight: 700;
-  color: rgba(26,22,18,0.2);
-}
-.hero-overlay {
-  position: absolute; inset: 0;
-  background: linear-gradient(to top, rgba(26,22,18,0.85) 0%, rgba(26,22,18,0.2) 55%, transparent 100%);
-  padding: 14px; display: flex; flex-direction: column; justify-content: flex-end;
-}
-.hero-source-badge {
-  font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 500;
-  letter-spacing: 2px; color: var(--src-color, var(--brand));
-  background: rgba(247,244,239,0.15); border: 1px solid var(--src-color, var(--brand));
-  padding: 2px 8px; border-radius: 3px;
-  display: inline-block; align-self: flex-start; margin-bottom: 8px;
-}
-.hero-title {
-  font-family: 'Noto Serif SC', serif; font-size: 17px; font-weight: 700;
-  color: #fff; line-height: 1.5; margin-bottom: 8px;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-}
-.hero-meta { display: flex; align-items: center; gap: 5px; }
-.hero-meta span { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: rgba(247,244,239,0.7); }
-
 .news-card {
   background: var(--bg-card); border-radius: var(--radius); padding: 13px 12px;
   display: flex; gap: 10px; align-items: stretch; cursor: pointer;
@@ -568,8 +484,6 @@ watch(sentinel, () => setupObserver())
 .no-more { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 20px 0 8px; }
 .no-more-text { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); letter-spacing: 3px; }
 .no-more-line { flex: 1; height: 1px; background: var(--border); max-width: 50px; }
-.dot { color: var(--border-strong); }
-
 @media (min-width: 768px) {
   .news-page { height: 100vh; }
   .list-wrap {
@@ -578,7 +492,6 @@ watch(sentinel, () => setupObserver())
     gap: 8px;
     padding: 12px 24px 24px;
   }
-  .news-card--hero { grid-column: 1 / -1; height: 320px; }
   .skeleton-list, .load-indicator, .no-more { grid-column: 1 / -1; }
   .top-bar { padding: 0 24px; }
   .source-chips { padding: 8px 24px; }
@@ -590,14 +503,6 @@ watch(sentinel, () => setupObserver())
     gap: 12px;
     padding: 16px 28px 28px;
   }
-
-  .news-card--hero { grid-column: auto; height: 110px; }
-  .news-card--hero .hero-overlay { padding: 16px 14px; }
-  .news-card--hero .hero-title {
-    font-size: 15px;
-    line-height: 1.55;
-  }
-  .news-card--hero .hero-source-badge { margin-bottom: 6px; }
   .news-card { height: 110px; padding: 16px 14px; }
   .card-img { width: 108px; height: 76px; }
   .card-title { font-size: 15px; }
