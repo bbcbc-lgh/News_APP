@@ -370,4 +370,50 @@ onMounted(async () => {
 .modal-enter-active .modal-sheet, .modal-leave-active .modal-sheet { transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); }
 .modal-enter-from, .modal-leave-to { opacity: 0; }
 .modal-enter-from .modal-sheet, .modal-leave-to .modal-sheet { transform: translateY(100%); }
+
+@media (min-width: 768px) {
+  .top-bar { padding: 0 24px; }
+  .user-card,
+  .tabs-bar,
+  .list-section {
+    width: min(1180px, calc(100% - 48px));
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .user-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-top: 20px;
+    padding: 24px;
+  }
+  .tabs-bar {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-top: 14px;
+  }
+  .list-section { padding: 0; }
+}
+
+@media (min-width: 1200px) {
+  .list-section {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .list-toolbar,
+  .empty-state,
+  .load-more {
+    grid-column: 1 / -1;
+  }
+  .list-item {
+    min-height: 96px;
+    margin-bottom: 0;
+  }
+  .item-thumb {
+    width: 96px;
+    height: 72px;
+  }
+  .item-title { font-size: 14px; }
+}
 </style>

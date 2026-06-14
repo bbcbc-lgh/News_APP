@@ -521,4 +521,23 @@ watch(sentinel, () => setupObserver())
   .top-bar { padding: 0 24px; }
   .source-chips { padding: 8px 24px; }
 }
+
+@media (min-width: 1200px) {
+  .list-wrap {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    padding: 16px 28px 28px;
+  }
+
+  .news-card--hero { height: 360px; }
+  .news-card { height: 110px; padding: 16px 14px; }
+  .card-img { width: 108px; height: 76px; }
+  .card-title { font-size: 15px; }
+}
+
+@media (min-width: 1680px) {
+  .list-wrap {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
 </style>

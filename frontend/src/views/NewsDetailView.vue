@@ -278,10 +278,42 @@ watch(() => route.params.id, loadDetail)
 
 @media (min-width: 768px) {
   .detail-page { min-height: 100%; }
-  .content { max-width: 800px; margin: 0 auto; }
+  .content { max-width: 960px; margin: 0 auto; }
   .cover-img { max-height: 420px; }
   .article-body { padding: 32px 40px 8px; }
   .article-title { font-size: 26px; }
   .related-section { padding: 0 40px 24px; }
+}
+
+@media (min-width: 1200px) {
+  .top-bar { padding: 0 28px; }
+  .content {
+    max-width: 1180px;
+    display: grid;
+    grid-template-columns: minmax(0, 760px) 340px;
+    column-gap: 40px;
+    align-items: start;
+    padding: 28px;
+  }
+  .cover-wrap {
+    grid-column: 1;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .article-body {
+    grid-column: 1;
+    padding: 28px 0 8px;
+  }
+  .article-title { font-size: 30px; }
+  .article-text { font-size: 16px; }
+  .related-section {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    margin-top: 0;
+    padding: 0;
+    border-top: none;
+    position: sticky;
+    top: 76px;
+  }
 }
 </style>

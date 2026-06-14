@@ -11,7 +11,7 @@ const showNav = computed(() => auth.isLoggedIn && !route.meta.public)
 </script>
 
 <template>
-  <div id="app">
+  <div class="app-shell">
     <nav v-if="showNav" class="sidebar">
       <div class="sidebar-logo">AI</div>
       <RouterLink to="/news" class="nav-item" active-class="active">
@@ -89,8 +89,9 @@ body::before {
   opacity: 0.4;
 }
 
-#app {
+.app-shell {
   min-height: 100vh;
+  width: 100%;
   display: flex;
   flex-direction: column;
 }
@@ -154,7 +155,7 @@ input, textarea, select { outline: none; font-family: inherit; }
 
 /* Desktop: sidebar layout */
 @media (min-width: 768px) {
-  #app {
+  .app-shell {
     flex-direction: row;
     height: 100vh;
     overflow: hidden;
