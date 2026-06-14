@@ -25,6 +25,17 @@ const favMore = ref(true)
 const histMore = ref(true)
 const listLoading = ref(false)
 
+const SOURCE_META: Record<string, { label: string; color: string }> = {
+  hackernews: { label: 'HN', color: 'var(--hn)' },
+  openai: { label: 'OpenAI', color: 'var(--openai)' },
+  google_ai: { label: 'Google AI', color: 'var(--google)' },
+  mit: { label: 'MIT', color: 'var(--mit-fg)' },
+}
+
+function sourceMeta(source?: string | null) {
+  return SOURCE_META[source || ''] || { label: 'AI', color: 'var(--brand)' }
+}
+
 function timeAgo(s: string): string {
   if (!s) return ''
   const d = Math.floor((Date.now() - new Date(s).getTime()) / 86400000)
@@ -36,6 +47,14 @@ function avatarText() {
   const u = auth.userInfo
   if (!u) return '?'
   return (u.nickname || u.username || '?').charAt(0).toUpperCase()
+}
+function itemTopic(item: FavoriteItem | HistoryItem): string {
+  const text = `${item.title} ${item.title_zh || ''}`.toLowerCase()
+  if (/open source|oss|开源/.test(text)) return 'OPEN'
+  if (/model|gpt|gemini|claude|llm|模型/.test(text)) return 'MODEL'
+  if (/funding|raises|融资|募资/.test(text)) return 'FUND'
+  if (/policy|legal|law|监管|政策|诉讼/.test(text)) return 'POLICY'
+  return sourceMeta(item.source_platform).label
 }
 function onOverlayMousedown(e: MouseEvent) { overlayMousedownTarget.value = e.target }
 function onOverlayClick(e: MouseEvent, close: () => void) {
@@ -170,7 +189,10 @@ onMounted(async () => {
       </div>
       <div v-for="item in favList" :key="item.id" class="list-item" @click="router.push(`/news/detail/${item.id}`)">
         <img v-if="item.image" :src="item.image" class="item-thumb" loading="lazy" />
-        <div v-else class="item-thumb item-thumb--empty"></div>
+        <div v-else class="item-thumb item-thumb--poster" :style="{ '--poster-color': sourceMeta(item.source_platform).color }">
+          <span>{{ itemTopic(item) }}</span>
+          <small>{{ sourceMeta(item.source_platform).label }}</small>
+        </div>
         <div class="item-body">
           <p class="item-title">{{ item.title }}</p>
           <div class="item-meta">
@@ -199,7 +221,10 @@ onMounted(async () => {
       </div>
       <div v-for="item in histList" :key="item.historyId" class="list-item" @click="router.push(`/news/detail/${item.id}`)">
         <img v-if="item.image" :src="item.image" class="item-thumb" loading="lazy" />
-        <div v-else class="item-thumb item-thumb--empty"></div>
+        <div v-else class="item-thumb item-thumb--poster" :style="{ '--poster-color': sourceMeta(item.source_platform).color }">
+          <span>{{ itemTopic(item) }}</span>
+          <small>{{ sourceMeta(item.source_platform).label }}</small>
+        </div>
         <div class="item-body">
           <p class="item-title">{{ item.title }}</p>
           <div class="item-meta">
@@ -321,7 +346,22 @@ onMounted(async () => {
 }
 .list-item:active { background: var(--bg-hover); }
 .item-thumb { width: 72px; height: 54px; border-radius: var(--radius-sm); object-fit: cover; flex-shrink: 0; border: 1px solid var(--border); }
-.item-thumb--empty { background: var(--bg-elevated); }
+.item-thumb--poster {
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between;
+  padding: 7px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--poster-color) 16%, transparent), transparent 58%),
+    repeating-linear-gradient(45deg, rgba(26,22,18,0.035) 0 1px, transparent 1px 8px),
+    var(--bg-elevated);
+}
+.item-thumb--poster span {
+  font-family: 'JetBrains Mono', monospace; font-size: 9px;
+  color: var(--poster-color); letter-spacing: 0.6px;
+}
+.item-thumb--poster small {
+  font-family: 'JetBrains Mono', monospace; font-size: 8px;
+  color: var(--text-muted); letter-spacing: 0.8px;
+}
 .item-body { flex: 1; min-width: 0; }
 .item-title { font-size: 13px; font-weight: 600; color: var(--text-primary); line-height: 1.5; margin-bottom: 5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .item-meta { display: flex; align-items: center; gap: 4px; }

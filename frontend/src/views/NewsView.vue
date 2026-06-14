@@ -102,6 +102,28 @@ function formatViews(v: number): string {
   return v >= 10000 ? `${(v / 10000).toFixed(1)}万` : String(v)
 }
 
+function displayTitle(item: NewsItem): string {
+  return item.title_zh || item.title
+}
+
+function posterTopic(item: NewsItem): string {
+  const text = `${item.title} ${item.title_zh || ''}`.toLowerCase()
+  if (/open source|oss|开源/.test(text)) return 'OPEN'
+  if (/model|gpt|gemini|claude|llm|模型|大模型/.test(text)) return 'MODEL'
+  if (/funding|raises|seed|series|融资|募资|投资/.test(text)) return 'FUND'
+  if (/law|legal|policy|regulation|investigation|lawsuit|监管|政策|调查|诉讼|出口管制/.test(text)) return 'POLICY'
+  if (/research|paper|study|benchmark|研究|论文|基准/.test(text)) return 'RESEARCH'
+  if (/show hn|launch|release|发布|推出/.test(text)) return 'LAUNCH'
+  return 'AI NOTE'
+}
+
+function posterMark(item: NewsItem): string {
+  const title = displayTitle(item).replace(/[^\p{L}\p{N}\s]/gu, ' ').trim()
+  const words = title.split(/\s+/).filter(w => w.length > 2)
+  if (words.length) return words.slice(0, 2).join(' / ').toUpperCase()
+  return title.slice(0, 8) || sourceMeta(item.source_platform || '').label
+}
+
 function setupObserver() {
   if (observer) observer.disconnect()
   observer = new IntersectionObserver((entries) => {
@@ -216,14 +238,16 @@ watch(sentinel, () => setupObserver())
       <template v-if="displayList.length > 0">
         <RouterLink class="news-card news-card--hero" :to="`/news/detail/${displayList[0].id}`">
           <img v-if="displayList[0].image" :src="displayList[0].image" class="hero-img" loading="lazy" />
-          <div v-else class="hero-img hero-img--empty" :style="{ background: sourceMeta(displayList[0].source_platform || '').bg }">
-            <span class="placeholder-label">{{ sourceMeta(displayList[0].source_platform || '').label }}</span>
+          <div v-else class="hero-img hero-img--poster" :style="{ '--poster-color': sourceMeta(displayList[0].source_platform || '').color }">
+            <span class="poster-kicker">{{ sourceMeta(displayList[0].source_platform || '').label }}</span>
+            <span class="poster-topic">{{ posterTopic(displayList[0]) }}</span>
+            <span class="poster-mark">{{ posterMark(displayList[0]) }}</span>
           </div>
           <div class="hero-overlay">
             <div class="hero-source-badge" :style="{ '--src-color': sourceMeta(displayList[0].source_platform || '').color }">
               {{ sourceMeta(displayList[0].source_platform || '').label }}
             </div>
-            <h2 class="hero-title">{{ displayList[0].title_zh || displayList[0].title }}</h2>
+            <h2 class="hero-title">{{ displayTitle(displayList[0]) }}</h2>
             <div class="hero-meta">
               <span>{{ displayList[0].author || '未知' }}</span>
               <span class="dot">·</span>
@@ -245,7 +269,7 @@ watch(sentinel, () => setupObserver())
             <div class="card-source" :style="{ color: sourceMeta(item.source_platform || '').color }">
               {{ sourceMeta(item.source_platform || '').label }}
             </div>
-            <h3 class="card-title">{{ item.title_zh || item.title }}</h3>
+            <h3 class="card-title">{{ displayTitle(item) }}</h3>
             <div class="card-meta">
               <span>{{ item.author || '未知' }}</span>
               <span class="meta-dot">·</span>
@@ -256,8 +280,9 @@ watch(sentinel, () => setupObserver())
           </div>
           <div class="card-right">
             <img v-if="item.image" :src="item.image" class="card-img" loading="lazy" />
-            <div v-else class="card-img card-img--empty" :style="{ background: sourceMeta(item.source_platform || '').bg }">
-              <span class="placeholder-label small">{{ sourceMeta(item.source_platform || '').label }}</span>
+            <div v-else class="card-img card-img--poster" :style="{ '--poster-color': sourceMeta(item.source_platform || '').color }">
+              <span class="thumb-topic">{{ posterTopic(item) }}</span>
+              <span class="thumb-source">{{ sourceMeta(item.source_platform || '').label }}</span>
             </div>
           </div>
         </RouterLink>
@@ -410,7 +435,35 @@ watch(sentinel, () => setupObserver())
   background: var(--bg-elevated); border: 1px solid var(--border);
 }
 .hero-img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.hero-img--empty { background: var(--bg-elevated); }
+.hero-img--poster {
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: 22px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--poster-color) 18%, transparent), transparent 48%),
+    repeating-linear-gradient(0deg, rgba(26,22,18,0.045) 0 1px, transparent 1px 18px),
+    var(--bg-elevated);
+  color: var(--text-primary);
+  position: relative;
+}
+.hero-img--poster::after {
+  content: ''; position: absolute; inset: 18px;
+  border: 1px solid color-mix(in srgb, var(--poster-color) 45%, transparent);
+  border-radius: var(--radius-sm);
+}
+.poster-kicker, .poster-topic, .poster-mark { position: relative; z-index: 1; }
+.poster-kicker {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 2px;
+  color: var(--poster-color); text-transform: uppercase;
+}
+.poster-topic {
+  align-self: flex-end; font-family: 'JetBrains Mono', monospace;
+  font-size: 12px; letter-spacing: 2px; color: var(--poster-color);
+}
+.poster-mark {
+  max-width: 70%; font-family: 'Libre Baskerville', 'Noto Serif SC', serif;
+  font-size: 34px; line-height: 1.12; font-weight: 700;
+  color: rgba(26,22,18,0.2);
+}
 .hero-overlay {
   position: absolute; inset: 0;
   background: linear-gradient(to top, rgba(26,22,18,0.85) 0%, rgba(26,22,18,0.2) 55%, transparent 100%);
@@ -466,13 +519,22 @@ watch(sentinel, () => setupObserver())
   width: 88px; height: 64px; border-radius: var(--radius-sm);
   object-fit: cover; display: block; border: 1px solid var(--border);
 }
-.card-img--empty { background: var(--bg-elevated); display: flex; align-items: center; justify-content: center; }
-.hero-img--empty { display: flex; align-items: center; justify-content: center; }
-.placeholder-label {
-  font-family: 'JetBrains Mono', monospace; font-weight: 500;
-  font-size: 13px; letter-spacing: 1px; opacity: 0.5; color: var(--text-primary);
+.card-img--poster {
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between;
+  padding: 8px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--poster-color) 14%, transparent), transparent 58%),
+    repeating-linear-gradient(45deg, rgba(26,22,18,0.035) 0 1px, transparent 1px 8px),
+    var(--bg-elevated);
 }
-.placeholder-label.small { font-size: 9px; letter-spacing: 0.5px; }
+.thumb-topic {
+  font-family: 'JetBrains Mono', monospace; font-size: 9px; line-height: 1.1;
+  color: var(--poster-color); letter-spacing: 0.7px;
+}
+.thumb-source {
+  font-family: 'JetBrains Mono', monospace; font-size: 8px;
+  color: var(--text-muted); letter-spacing: 1px;
+}
 
 .skeleton-card {
   display: flex; gap: 12px; background: var(--bg-card); border-radius: var(--radius);

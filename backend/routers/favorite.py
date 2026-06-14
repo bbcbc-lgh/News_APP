@@ -76,9 +76,11 @@ async def list_favorites(
         {
             "id": news.id,
             "title": news.title,
+            "title_zh": news.title_zh,
             "description": news.description,
             "image": news.image,
             "author": news.author,
+            "source_platform": news.source_platform,
             "publishTime": news.publish_time,
             "categoryId": news.category_id,
             "views": news.views,

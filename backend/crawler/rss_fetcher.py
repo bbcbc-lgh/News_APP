@@ -75,6 +75,29 @@ def _get_image(entry) -> str:
     return ""
 
 
+async def _get_og_image(client: httpx.AsyncClient, url: str) -> str:
+    if not url:
+        return ""
+    try:
+        resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0"}, follow_redirects=True, timeout=8)
+        html = resp.text[:120000]
+    except Exception:
+        return ""
+    patterns = [
+        r'<meta[^>]+property=["\']og:image(?::secure_url)?["\'][^>]+content=["\']([^"\']+)["\']',
+        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image(?::secure_url)?["\']',
+        r'<meta[^>]+name=["\']twitter:image["\'][^>]+content=["\']([^"\']+)["\']',
+        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+name=["\']twitter:image["\']',
+    ]
+    for pattern in patterns:
+        m = re.search(pattern, html, re.IGNORECASE)
+        if m:
+            image = m.group(1).strip()
+            if image.startswith("http"):
+                return image
+    return ""
+
+
 async def fetch_rss_source(db: AsyncSession, source: dict) -> int:
     """采集单个 RSS 源，返回新增条数"""
     try:
@@ -96,14 +119,18 @@ async def fetch_rss_source(db: AsyncSession, source: dict) -> int:
         # MIT 是综合科技媒体，需过滤 AI 相关
         if source["platform"] == "mit" and not is_ai_related(title, description):
             continue
+        source_url = entry.get("link", "")
+        image = _get_image(entry)
+        if not image:
+            image = await _get_og_image(client, source_url)
         saved = await save_news(
             db,
             title=title,
             description=description,
             content=entry.get("content", [{}])[0].get("value", "") if entry.get("content") else "",
-            image=_get_image(entry),
+            image=image,
             author=entry.get("author", source["name"]),
-            source_url=entry.get("link", ""),
+            source_url=source_url,
             source_platform=source["platform"],
             publish_time=_parse_date(entry),
             category_id=source["category_id"],
