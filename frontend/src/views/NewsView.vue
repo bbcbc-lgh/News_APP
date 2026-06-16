@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, watch, ref, computed } from 'vue'
 import { useNewsStore } from '@/stores/newsStore'
 import { newsApi, type NewsItem } from '@/api/news'
+import { searchHistoryApi, type SearchHistoryItem } from '@/api/searchHistory'
 
 const news = useNewsStore()
 const refreshing = ref(false)
@@ -18,6 +19,9 @@ const searchPage = ref(1)
 const searchHasMore = ref(false)
 const searchTotal = ref(0)
 let searchTimer: ReturnType<typeof setTimeout> | null = null
+
+// 搜索历史
+const historyList = ref<SearchHistoryItem[]>([])
 
 async function doSearch(reset = false) {
   const q = searchQuery.value.trim()
@@ -48,6 +52,42 @@ function onSearchInput() {
   if (!q) { exitSearch(); return }
   searchActive.value = true
   searchTimer = setTimeout(() => doSearch(true), 400)
+}
+
+function commitSearch() {
+  const q = searchQuery.value.trim()
+  if (!q) return
+  searchHistoryApi.add(q).then(loadHistory).catch(() => {})
+}
+
+function searchFromHistory(q: string) {
+  searchQuery.value = q
+  searchActive.value = true
+  doSearch(true)
+  searchHistoryApi.add(q).then(loadHistory).catch(() => {})
+}
+
+async function loadHistory() {
+  try {
+    const res = await searchHistoryApi.list(15)
+    historyList.value = res.list
+  } catch { /* 静默 */ }
+}
+
+async function removeHistory(e: MouseEvent, id: number) {
+  e.stopPropagation()
+  try {
+    await searchHistoryApi.remove(id)
+    historyList.value = historyList.value.filter(h => h.id !== id)
+  } catch { /* ignore */ }
+}
+
+async function clearHistory() {
+  if (!confirm('确定清空所有搜索历史？')) return
+  try {
+    await searchHistoryApi.clear()
+    historyList.value = []
+  } catch { /* ignore */ }
 }
 
 function exitSearch() {
@@ -132,6 +172,7 @@ onMounted(async () => {
   await news.loadCategories()
   if (news.newsList.length === 0) news.loadNews(news.activeSource, true)
   setupObserver()
+  loadHistory()
 })
 
 onUnmounted(() => { observer?.disconnect() })
@@ -183,6 +224,7 @@ watch(sentinel, () => setupObserver())
           class="search-input"
           placeholder="搜索文章…"
           @input="onSearchInput"
+          @keydown.enter="commitSearch"
           @keydown.escape="exitSearch"
         />
         <button v-if="searchActive" class="search-clear" @click="exitSearch">
@@ -193,6 +235,29 @@ watch(sentinel, () => setupObserver())
       </div>
       <div v-if="searchActive && searchTotal > 0" class="search-meta">
         <span class="search-count">{{ searchTotal }} 条结果</span>
+      </div>
+    </div>
+
+    <div v-if="!searchActive && historyList.length" class="history-bar"
+      :style="{ top: 'calc(54px + 44px + 56px)' }">
+      <div class="history-head">
+        <span class="history-label">RECENT</span>
+        <button class="history-clear" @click="clearHistory">清空</button>
+      </div>
+      <div class="history-chips">
+        <button v-for="h in historyList" :key="h.id" class="history-chip"
+          @click="searchFromHistory(h.query)">
+          <svg class="hc-icon" width="11" height="11" viewBox="0 0 16 16" fill="none">
+            <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <span class="hc-text">{{ h.query }}</span>
+          <span class="hc-remove" @click="removeHistory($event, h.id)">
+            <svg width="9" height="9" viewBox="0 0 12 12" fill="none">
+              <path d="M2 2L10 10M10 2L2 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </span>
+        </button>
       </div>
     </div>
 
@@ -372,6 +437,50 @@ watch(sentinel, () => setupObserver())
   font-family: 'JetBrains Mono', monospace; font-size: 10px;
   color: var(--brand); letter-spacing: 0.5px;
 }
+
+.history-bar {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  position: sticky; z-index: 7; flex-shrink: 0;
+  padding: 8px 12px;
+}
+.history-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px;
+}
+.history-label {
+  font-family: 'JetBrains Mono', monospace; font-size: 9px;
+  font-weight: 600; color: var(--text-muted); letter-spacing: 2px;
+}
+.history-clear {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  color: var(--text-muted); transition: color 0.15s;
+}
+.history-clear:hover { color: var(--mit-fg); }
+.history-chips {
+  display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px;
+}
+.history-chips::-webkit-scrollbar { display: none; }
+.history-chip {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 10px; background: var(--bg-elevated);
+  border: 1px solid var(--border); border-radius: 16px;
+  color: var(--text-secondary); transition: all 0.15s; max-width: 200px;
+}
+.history-chip:hover { border-color: var(--brand); color: var(--brand); }
+.hc-icon { color: var(--text-muted); flex-shrink: 0; }
+.history-chip:hover .hc-icon { color: var(--brand); }
+.hc-text {
+  font-size: 12px; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; max-width: 140px;
+}
+.hc-remove {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; border-radius: 50%;
+  color: var(--text-muted); flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.hc-remove:hover { background: var(--bg-hover); color: var(--mit-fg); }
 
 .no-result {
   display: flex; align-items: center; justify-content: center;

@@ -374,6 +374,8 @@ CREATE TABLE reading_progress (
 
 ### 14. 搜索历史 ⭐️⭐️
 
+> ✅ 已完成 2026-06-16（后端 search_history 表 + CRUD API；前端在搜索栏下方显示历史 chips，Enter 提交时记录，支持点击重复搜索、删除单条、清空全部）
+
 **痛点**：无法快速重复搜索
 
 **技术实现**：

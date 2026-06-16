@@ -123,6 +123,7 @@ asyncio.run(main())
 - MySQL 不支持 `ADD COLUMN IF NOT EXISTS`，迁移脚本需用 `information_schema` 检查列是否存在
 - `source_platform` 字段值：`hackernews` / `openai` / `google_ai` / `mit`
 - 迁移脚本放在 `backend/migrations/versions/`，命名格式 `000N_描述.py`
+- **外键类型坑**：`user.id` 是 `INT UNSIGNED`（无符号），新建带外键的表时 `user_id` 必须用 `INT UNSIGNED`，否则报 `Referencing column and referenced column incompatible`。`news.id` 同理（建表前用 `SHOW CREATE TABLE` 确认）。
 
 ## 翻译服务
 
