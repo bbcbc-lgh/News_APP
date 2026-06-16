@@ -1,4 +1,4 @@
-from sqlalchemy import func, select, update, or_
+from sqlalchemy import func, select, update, or_, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta
 from models.news import Category, News
@@ -59,22 +59,20 @@ async def get_count_by_source(db: AsyncSession, source: str | None = None) -> in
     result = await db.execute(stmt)
     return result.scalar_one()
 
-# 关键词搜索新闻（标题或摘要模糊匹配），支持跨分类，可选多源与时间范围筛选
-async def search_news(
-        db: AsyncSession,
-        keyword: str,
-        skip: int = 0,
-        limit: int = 10,
-        sources: list[str] | None = None,
-        time_range: str | None = None,
-        tags: list[str] | None = None,
-):
-    stmt = select(News).where(
-        or_(
-            News.title.like(f"%{keyword}%"),
-            News.description.like(f"%{keyword}%"),
-        )
+def _build_search_where(keyword: str):
+    """返回 (use_fulltext, where_clause_or_raw_sql_fragment)
+    优先 MATCH AGAINST；LIKE 作为降级备用（由调用方决定）。
+    实际上我们直接用 text() 在外层拼，这里只负责构造 ORM 过滤条件。
+    """
+    return or_(
+        News.title.like(f"%{keyword}%"),
+        News.title_zh.like(f"%{keyword}%"),
+        News.description.like(f"%{keyword}%"),
+        News.description_zh.like(f"%{keyword}%"),
     )
+
+
+def _apply_common_filters(stmt, sources, time_range, tags):
     if sources:
         stmt = stmt.where(News.source_platform.in_(sources))
     if time_range and time_range != "all":
@@ -90,6 +88,36 @@ async def search_news(
             .where(TopicTag.slug.in_(tags))
         )
         stmt = stmt.where(News.id.in_(subq))
+    return stmt
+
+
+# 关键词搜索新闻，优先 FULLTEXT，降级 LIKE
+async def search_news(
+        db: AsyncSession,
+        keyword: str,
+        skip: int = 0,
+        limit: int = 10,
+        sources: list[str] | None = None,
+        time_range: str | None = None,
+        tags: list[str] | None = None,
+):
+    try:
+        # MATCH AGAINST with ngram parser（IN BOOLEAN MODE 支持短词）
+        kw = keyword.replace("'", "''")
+        base_where = f"MATCH(title, title_zh, description, description_zh) AGAINST ('{kw}' IN BOOLEAN MODE)"
+        stmt = select(News).where(text(base_where))
+        stmt = _apply_common_filters(stmt, sources, time_range, tags)
+        stmt = stmt.order_by(News.publish_time.desc()).offset(skip).limit(limit)
+        result = await db.execute(stmt)
+        rows = result.scalars().all()
+        if rows:
+            return rows
+    except Exception:
+        pass
+
+    # 降级：LIKE
+    stmt = select(News).where(_build_search_where(keyword))
+    stmt = _apply_common_filters(stmt, sources, time_range, tags)
     stmt = stmt.order_by(News.publish_time.desc()).offset(skip).limit(limit)
     result = await db.execute(stmt)
     return result.scalars().all()
@@ -103,27 +131,20 @@ async def get_search_count(
         time_range: str | None = None,
         tags: list[str] | None = None,
 ) -> int:
-    stmt = select(func.count(News.id)).where(
-        or_(
-            News.title.like(f"%{keyword}%"),
-            News.description.like(f"%{keyword}%"),
-        )
-    )
-    if sources:
-        stmt = stmt.where(News.source_platform.in_(sources))
-    if time_range and time_range != "all":
-        days = TIME_RANGE_DAYS.get(time_range)
-        if days:
-            cutoff = datetime.now() - timedelta(days=days)
-            stmt = stmt.where(News.publish_time >= cutoff)
-    if tags:
-        from models.topic_tag import NewsTopicTag, TopicTag
-        subq = (
-            select(NewsTopicTag.news_id)
-            .join(TopicTag, TopicTag.id == NewsTopicTag.tag_id)
-            .where(TopicTag.slug.in_(tags))
-        )
-        stmt = stmt.where(News.id.in_(subq))
+    try:
+        kw = keyword.replace("'", "''")
+        base_where = f"MATCH(title, title_zh, description, description_zh) AGAINST ('{kw}' IN BOOLEAN MODE)"
+        stmt = select(func.count(News.id)).where(text(base_where))
+        stmt = _apply_common_filters(stmt, sources, time_range, tags)
+        result = await db.execute(stmt)
+        count = result.scalar_one()
+        if count > 0:
+            return count
+    except Exception:
+        pass
+
+    stmt = select(func.count(News.id)).where(_build_search_where(keyword))
+    stmt = _apply_common_filters(stmt, sources, time_range, tags)
     result = await db.execute(stmt)
     return result.scalar_one()
 
