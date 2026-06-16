@@ -13,6 +13,7 @@ const isFav = ref(false)
 const loading = ref(true)
 const favLoading = ref(false)
 const error = ref('')
+const shareStatus = ref<'idle' | 'copied'>('idle')
 
 const SOURCE_META: Record<string, { label: string; color: string }> = {
   'hackernews': { label: 'HN',        color: 'var(--hn)' },
@@ -99,6 +100,22 @@ async function toggleFav() {
   } finally { favLoading.value = false }
 }
 
+async function shareArticle() {
+  if (!detail.value) return
+  const url = `${window.location.origin}/news/detail/${detail.value.id}`
+  const title = detail.value.titleZh || detail.value.title
+  const text = detail.value.descriptionZh || detail.value.description || ''
+  if (navigator.share) {
+    try { await navigator.share({ title, text, url }) } catch { /* 用户取消 */ }
+    return
+  }
+  try {
+    await navigator.clipboard.writeText(url)
+    shareStatus.value = 'copied'
+    setTimeout(() => shareStatus.value = 'idle', 1500)
+  } catch { /* ignore */ }
+}
+
 async function loadDetail() {
   const id = Number(route.params.id)
   loading.value = true
@@ -126,6 +143,18 @@ watch(() => route.params.id, loadDetail)
         </svg>
       </button>
       <span class="top-label">ARTICLE</span>
+      <button class="share-btn" :class="{ copied: shareStatus === 'copied' }"
+        :title="shareStatus === 'copied' ? '已复制链接' : '分享'" @click="shareArticle">
+        <svg v-if="shareStatus === 'copied'" width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M5 10L9 14L15 6" stroke="var(--brand)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <svg v-else width="20" height="20" viewBox="0 0 22 22" fill="none">
+          <circle cx="6" cy="11" r="2.4" stroke="currentColor" stroke-width="1.6"/>
+          <circle cx="16" cy="5.5" r="2.4" stroke="currentColor" stroke-width="1.6"/>
+          <circle cx="16" cy="16.5" r="2.4" stroke="currentColor" stroke-width="1.6"/>
+          <path d="M8.1 10L13.9 6.6M8.1 12L13.9 15.4" stroke="currentColor" stroke-width="1.6"/>
+        </svg>
+      </button>
       <button :class="['fav-btn', { active: isFav }]" :disabled="favLoading" @click="toggleFav">
         <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
           <path d="M11 19L3.5 11.5C2 10 2 7.5 3.5 6C5 4.5 7.5 4.5 9 6L11 8L13 6C14.5 4.5 17 4.5 18.5 6C20 7.5 20 10 18.5 11.5L11 19Z"
@@ -213,6 +242,13 @@ watch(() => route.params.id, loadDetail)
 }
 .fav-btn { padding: 6px; display: flex; align-items: center; transition: transform 0.2s; }
 .fav-btn:active { transform: scale(0.85); }
+
+.share-btn {
+  padding: 6px; display: flex; align-items: center; color: var(--text-secondary);
+  margin-right: 2px; transition: transform 0.2s, color 0.2s;
+}
+.share-btn:active { transform: scale(0.85); }
+.share-btn.copied { color: var(--brand); }
 
 .state-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 80px 20px; }
 .err-state p { font-size: 15px; color: var(--text-secondary); }
