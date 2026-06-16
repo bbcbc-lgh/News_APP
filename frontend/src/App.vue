@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { RouterView, useRoute, useRouter } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { RouterView, RouterLink, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 
 const auth = useAuthStore()
@@ -8,6 +8,18 @@ const route = useRoute()
 const router = useRouter()
 
 const showNav = computed(() => auth.isLoggedIn && !route.meta.public)
+
+type Theme = 'light' | 'dark'
+const theme = ref<Theme>((localStorage.getItem('theme') as Theme) || 'light')
+function applyTheme(t: Theme) {
+  document.documentElement.setAttribute('data-theme', t)
+}
+function toggleTheme() {
+  theme.value = theme.value === 'light' ? 'dark' : 'light'
+  localStorage.setItem('theme', theme.value)
+  applyTheme(theme.value)
+}
+onMounted(() => applyTheme(theme.value))
 </script>
 
 <template>
@@ -27,6 +39,17 @@ const showNav = computed(() => auth.isLoggedIn && !route.meta.public)
         </svg>
         <span class="nav-label">我的</span>
       </RouterLink>
+      <button class="nav-item theme-toggle" @click="toggleTheme"
+        :title="theme === 'light' ? '切换到夜间模式' : '切换到日间模式'">
+        <svg v-if="theme === 'light'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+        <svg v-else width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+        </svg>
+        <span class="nav-label">{{ theme === 'light' ? '夜间' : '日间' }}</span>
+      </button>
     </nav>
     <div class="page-wrap">
       <RouterView />
@@ -64,6 +87,24 @@ const showNav = computed(() => auth.isLoggedIn && !route.meta.public)
   --google: #1A73E8;
   --mit: #9B1C2E;
   --mit-fg: #C0364D;
+}
+
+:root[data-theme="dark"] {
+  --brand: #E2A028;
+  --brand-dim: rgba(226,160,40,0.14);
+  --brand-glow: rgba(226,160,40,0.22);
+  --bg: #1A1612;
+  --bg-card: #241F1A;
+  --bg-elevated: #2D2722;
+  --bg-hover: #382F29;
+  --text-primary: #E8DFD4;
+  --text-secondary: #B5A99B;
+  --text-muted: #807668;
+  --border: #3D362F;
+  --border-strong: #524940;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 20px rgba(0,0,0,0.5);
+  --shadow-glow: 0 0 20px rgba(226,160,40,0.18);
 }
 
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -111,7 +152,7 @@ body::before {
   left: 0;
   right: 0;
   height: var(--nav-h);
-  background: rgba(247,244,239,0.96);
+  background: color-mix(in srgb, var(--bg) 96%, transparent);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid var(--border);
@@ -149,6 +190,9 @@ body::before {
 .nav-item.active::after { transform: translateX(-50%) scaleX(1); }
 .nav-label { font-size: 10px; font-weight: 500; letter-spacing: 0.5px; font-family: 'JetBrains Mono', monospace; }
 
+.theme-toggle { font-family: inherit; }
+.theme-toggle:hover { color: var(--brand); }
+
 a { text-decoration: none; color: inherit; }
 button { cursor: pointer; border: none; outline: none; background: none; font-family: inherit; }
 input, textarea, select { outline: none; font-family: inherit; }
@@ -173,7 +217,7 @@ input, textarea, select { outline: none; font-family: inherit; }
     align-items: center;
     gap: 2px;
     flex-shrink: 0;
-    background: rgba(247,244,239,0.98);
+    background: color-mix(in srgb, var(--bg) 98%, transparent);
     backdrop-filter: blur(20px);
   }
 
@@ -204,6 +248,15 @@ input, textarea, select { outline: none; font-family: inherit; }
     display: block;
     font-size: 9px;
     letter-spacing: 1px;
+  }
+
+  .theme-toggle {
+    margin-top: auto;
+    height: 52px;
+  }
+  .theme-toggle:hover {
+    background: var(--brand-dim);
+    color: var(--brand);
   }
 
   .page-wrap {

@@ -335,7 +335,7 @@ watch(sentinel, () => setupObserver())
   width: 28px;
   height: 40px;
   margin-top: -40px;
-  background: linear-gradient(90deg, rgba(255,255,255,0), var(--bg-card));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--bg-card) 0%, transparent), var(--bg-card));
   pointer-events: none;
 }
 .source-strip::-webkit-scrollbar { display: none; }

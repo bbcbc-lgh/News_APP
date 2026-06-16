@@ -346,7 +346,8 @@ onUnmounted(() => {
 
 .top-bar {
   position: sticky; top: 0; z-index: 10; height: 52px;
-  background: rgba(247,244,239,0.95); backdrop-filter: blur(16px);
+  background: color-mix(in srgb, var(--bg) 95%, transparent);
+  backdrop-filter: blur(16px);
   display: flex; align-items: center; padding: 0 12px;
   border-bottom: 1px solid var(--border); box-shadow: var(--shadow-sm);
 }
