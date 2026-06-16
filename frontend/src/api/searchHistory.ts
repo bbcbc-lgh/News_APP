@@ -18,4 +18,7 @@ export const searchHistoryApi = {
 
   clear: () =>
     apiClient.delete<null>('/api/search/history', true),
+
+  suggestions: (q: string) =>
+    apiClient.get<string[]>(`/api/search/history/suggestions?q=${encodeURIComponent(q)}`, true),
 }

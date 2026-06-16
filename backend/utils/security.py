@@ -62,3 +62,13 @@ async def get_current_user(
     if not user:
         raise HTTPException(status_code=401, detail="未登录或登录已过期")
     return user
+
+
+async def get_optional_user(
+    authorization: str = Header(None, alias="Authorization"),
+    db: AsyncSession = Depends(get_db),
+):
+    """可选认证：有合法 token 返回用户，无 token 或无效 token 返回 None"""
+    if not authorization:
+        return None
+    return await get_user_by_token(db, authorization)

@@ -89,17 +89,31 @@ async function doSearch(reset = false) {
   }
 }
 
+// 搜索建议
+const suggestions = ref<string[]>([])
+let suggestTimer: ReturnType<typeof setTimeout> | null = null
+
+async function fetchSuggestions(q: string) {
+  if (!q.trim()) { suggestions.value = []; return }
+  try {
+    suggestions.value = await searchHistoryApi.suggestions(q.trim())
+  } catch { suggestions.value = [] }
+}
+
 function onSearchInput() {
   if (searchTimer) clearTimeout(searchTimer)
+  if (suggestTimer) clearTimeout(suggestTimer)
   const q = searchQuery.value.trim()
   if (!q) { exitSearch(); return }
   searchActive.value = true
+  suggestTimer = setTimeout(() => fetchSuggestions(q), 200)
   searchTimer = setTimeout(() => doSearch(true), 400)
 }
 
 function commitSearch() {
   const q = searchQuery.value.trim()
   if (!q) return
+  suggestions.value = []
   searchHistoryApi.add(q).then(loadHistory).catch(() => {})
 }
 
@@ -133,12 +147,19 @@ async function clearHistory() {
   } catch { /* ignore */ }
 }
 
+function selectSuggestion(word: string) {
+  searchQuery.value = word
+  suggestions.value = []
+  doSearch(true)
+  searchHistoryApi.add(word).then(loadHistory).catch(() => {})
+}
+
 function exitSearch() {
-  searchActive.value = false
   searchQuery.value = ''
   searchResults.value = []
   searchPage.value = 1
   searchHasMore.value = false
+  suggestions.value = []
 }
 
 // 推荐
@@ -365,6 +386,13 @@ async function menuQueue() {
             <path d="M2 2L10 10M10 2L2 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
           </svg>
         </button>
+      </div>
+      <div v-if="suggestions.length" class="suggestions-drop">
+        <button
+          v-for="s in suggestions" :key="s"
+          class="suggestion-item"
+          @mousedown.prevent="selectSuggestion(s)"
+        >{{ s }}</button>
       </div>
       <div v-if="searchActive && searchTotal > 0" class="search-meta">
         <span class="search-count">{{ searchTotal }} 条结果</span>
@@ -630,6 +658,19 @@ async function menuQueue() {
   padding: 2px; border-radius: 50%; transition: color 0.15s;
 }
 .search-clear:hover { color: var(--text-primary); }
+.suggestions-drop {
+  margin-top: 4px; border: 1px solid var(--border);
+  border-radius: var(--radius); background: var(--bg-card);
+  overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,.08);
+}
+.suggestion-item {
+  display: block; width: 100%; text-align: left;
+  padding: 9px 12px; font-size: 13px; color: var(--text-primary);
+  background: none; border: none; border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.suggestion-item:last-child { border-bottom: none; }
+.suggestion-item:hover { background: var(--bg-hover); color: var(--accent); }
 .search-meta { padding: 4px 2px 0; }
 .search-count {
   font-family: 'JetBrains Mono', monospace; font-size: 10px;
