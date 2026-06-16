@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { newsApi, type NewsDetail } from '@/api/news'
 import { favoriteApi } from '@/api/favorite'
 import { queueApi } from '@/api/queue'
 import { readingApi } from '@/api/readingBehavior'
 import { historyApi } from '@/api/history'
+import { readingProgressApi } from '@/api/readingProgress'
 
 const route = useRoute()
 const router = useRouter()
@@ -178,6 +179,10 @@ let behaviorTimer: ReturnType<typeof setInterval> | null = null
 let lastReportTime = 0
 let completedReported = false
 
+// 阅读进度持久化
+let progressTimer: ReturnType<typeof setInterval> | null = null
+let lastSavedPosition = -1
+
 function startBehaviorTracking(newsId: number) {
   stopBehaviorTracking()
   lastReportTime = Date.now()
@@ -214,6 +219,39 @@ function getScrollTarget(): HTMLElement {
   const scrollEl = document.querySelector('.page-wrap') as HTMLElement | null
   if (scrollEl && scrollEl.scrollHeight > scrollEl.clientHeight) return scrollEl
   return (document.scrollingElement as HTMLElement) || document.documentElement
+}
+
+function saveProgress() {
+  if (!detail.value) return
+  const target = getScrollTarget()
+  const pos = target.scrollTop
+  if (Math.abs(pos - lastSavedPosition) < 50) return
+  lastSavedPosition = pos
+  const docHeight = target.scrollHeight - target.clientHeight
+  const prog = docHeight > 0 ? Math.min(100, Math.round((pos / docHeight) * 100)) : 0
+  readingProgressApi.save(detail.value.id, prog, pos).catch(() => {})
+}
+
+function startProgressTracking() {
+  stopProgressTracking()
+  lastSavedPosition = -1
+  progressTimer = setInterval(saveProgress, 15000)
+}
+
+function stopProgressTracking() {
+  if (progressTimer) { clearInterval(progressTimer); progressTimer = null }
+}
+
+async function restoreProgress(newsId: number) {
+  try {
+    const res = await readingProgressApi.get(newsId)
+    if (res.lastPosition > 100) {
+      await nextTick()
+      setTimeout(() => {
+        getScrollTarget().scrollTo({ top: res.lastPosition, behavior: 'instant' })
+      }, 300)
+    }
+  } catch { /* 未登录时忽略 */ }
 }
 
 function onKeydown(e: KeyboardEvent) {
@@ -261,6 +299,8 @@ async function loadDetail() {
       detail.value = d.value
       historyApi.add(id).catch(() => {})
       startBehaviorTracking(id)
+      restoreProgress(id)
+      startProgressTracking()
     } else { error.value = '加载失败' }
     if (fav.status === 'fulfilled') isFav.value = fav.value.isFavorite
     if (queue.status === 'fulfilled') isInQueue.value = queue.value.inQueue
@@ -277,6 +317,8 @@ onMounted(() => {
 watch(() => route.params.id, () => {
   reportFinalDuration()
   stopBehaviorTracking()
+  saveProgress()
+  stopProgressTracking()
   loadDetail()
   setTimeout(updateProgress, 100)
 })
@@ -286,6 +328,8 @@ onUnmounted(() => {
   window.removeEventListener('keydown', onKeydown)
   reportFinalDuration()
   stopBehaviorTracking()
+  saveProgress()
+  stopProgressTracking()
 })
 </script>
 
