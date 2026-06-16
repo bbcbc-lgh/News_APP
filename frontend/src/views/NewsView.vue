@@ -424,8 +424,9 @@ async function menuQueue() {
     <div class="list-wrap">
       <div v-if="searchActive && searchLoading && searchResults.length === 0" class="skeleton-list">
         <div v-for="i in 3" :key="i" class="skeleton-card">
+          <div class="sk-index"></div>
           <div class="sk-body">
-            <div class="sk-eyebrow"></div>
+            <div class="sk-source"></div>
             <div class="sk-line sk-title"></div>
             <div class="sk-line sk-title sk-short"></div>
             <div class="sk-line sk-meta"></div>
@@ -440,8 +441,9 @@ async function menuQueue() {
 
       <div v-if="!searchActive && news.activeSource !== 'recommend' && news.newsList.length === 0 && news.loading" class="skeleton-list">
         <div v-for="i in 5" :key="i" class="skeleton-card">
+          <div class="sk-index"></div>
           <div class="sk-body">
-            <div class="sk-eyebrow"></div>
+            <div class="sk-source"></div>
             <div class="sk-line sk-title"></div>
             <div class="sk-line sk-title sk-short"></div>
             <div class="sk-line sk-meta"></div>
@@ -778,20 +780,30 @@ async function menuQueue() {
 }
 
 .skeleton-card {
-  display: flex; gap: 12px; background: var(--bg-card); border-radius: var(--radius);
+  display: flex; gap: 10px; align-items: stretch;
+  background: var(--bg-card); border-radius: var(--radius);
   padding: 13px 12px; margin-bottom: 6px; border: 1px solid var(--border);
+  height: 96px; overflow: hidden;
 }
-.sk-body { flex: 1; display: flex; flex-direction: column; gap: 7px; padding-top: 2px; }
+.sk-index {
+  width: 22px; flex-shrink: 0;
+  background: var(--border); border-radius: 3px;
+  height: 10px; margin-top: 3px;
+  animation: shimmer 1.5s infinite;
+  background: linear-gradient(90deg, var(--border) 25%, var(--bg-elevated) 50%, var(--border) 75%);
+  background-size: 400% 100%;
+}
+.sk-body { flex: 1; display: flex; flex-direction: column; gap: 7px; }
+.sk-source { height: 8px; width: 28px; border-radius: 3px; background: var(--border); }
 .sk-line {
   background: linear-gradient(90deg, var(--border) 25%, var(--bg-elevated) 50%, var(--border) 75%);
   background-size: 400% 100%; animation: shimmer 1.5s infinite; border-radius: 3px;
 }
-.sk-eyebrow { height: 8px; width: 40px; border-radius: 3px; background: var(--border); }
-.sk-title { height: 14px; }
-.sk-short { width: 65%; }
-.sk-meta { height: 10px; width: 50%; margin-top: 2px; }
+.sk-title { height: 13px; }
+.sk-short { width: 60%; }
+.sk-meta { height: 9px; width: 48%; margin-top: auto; }
 .sk-img {
-  width: 88px; height: 64px; border-radius: var(--radius-sm); flex-shrink: 0;
+  width: 88px; height: 64px; border-radius: var(--radius-sm); flex-shrink: 0; align-self: center;
   background: linear-gradient(90deg, var(--border) 25%, var(--bg-elevated) 50%, var(--border) 75%);
   background-size: 400% 100%; animation: shimmer 1.5s infinite;
 }
