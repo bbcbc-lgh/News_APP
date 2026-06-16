@@ -139,7 +139,31 @@ function exitSearch() {
   searchHasMore.value = false
 }
 
-const displayList = computed(() => searchActive.value ? searchResults.value : news.newsList)
+// 推荐
+const recommendList = ref<import('@/api/news').NewsItem[]>([])
+const recommendLoading = ref(false)
+
+async function loadRecommend() {
+  recommendLoading.value = true
+  try { recommendList.value = await newsApi.recommend(20) }
+  catch { recommendList.value = [] }
+  finally { recommendLoading.value = false }
+}
+
+function selectSource(id: string) {
+  if (id === 'recommend') {
+    news.setCategory('recommend')
+    if (!recommendList.value.length) loadRecommend()
+  } else {
+    news.setCategory(id)
+  }
+}
+
+const displayList = computed(() =>
+  searchActive.value ? searchResults.value
+  : news.activeSource === 'recommend' ? recommendList.value
+  : news.newsList
+)
 
 async function handleRefresh() {
   if (refreshing.value) return
@@ -219,7 +243,9 @@ onMounted(async () => {
 
 onUnmounted(() => { observer?.disconnect() })
 
-watch(() => news.activeSource, (src) => news.loadNews(src, true))
+watch(() => news.activeSource, (src) => {
+  if (src !== 'recommend') news.loadNews(src, true)
+})
 watch(sentinel, () => setupObserver())
 </script>
 
@@ -250,8 +276,15 @@ watch(sentinel, () => setupObserver())
           v-for="cat in news.categories"
           :key="cat.id"
           :class="['chip', { active: news.activeSource === cat.id }]"
-          @click="news.setCategory(cat.id)"
+          @click="selectSource(cat.id)"
         >{{ cat.name }}</button>
+        <button :class="['chip', 'chip--recommend', { active: news.activeSource === 'recommend' }]"
+          @click="selectSource('recommend')">
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style="margin-right:3px;vertical-align:-1px">
+            <path d="M6 1l1.3 2.6L10 4.1l-2 2 .5 2.9L6 7.6l-2.5 1.4.5-2.9-2-2 2.7-.5z" fill="currentColor"/>
+          </svg>
+          推荐
+        </button>
       </div>
     </div>
 
@@ -347,7 +380,7 @@ watch(sentinel, () => setupObserver())
         <span class="no-result-text">未找到 "{{ searchQuery }}" 相关内容</span>
       </div>
 
-      <div v-if="!searchActive && news.newsList.length === 0 && news.loading" class="skeleton-list">
+      <div v-if="!searchActive && news.activeSource !== 'recommend' && news.newsList.length === 0 && news.loading" class="skeleton-list">
         <div v-for="i in 5" :key="i" class="skeleton-card">
           <div class="sk-body">
             <div class="sk-eyebrow"></div>
@@ -357,6 +390,13 @@ watch(sentinel, () => setupObserver())
           </div>
           <div class="sk-img"></div>
         </div>
+      </div>
+
+      <div v-if="!searchActive && news.activeSource === 'recommend' && recommendLoading" class="state-wrap">
+        <div class="spinner"></div>
+      </div>
+      <div v-else-if="!searchActive && news.activeSource === 'recommend' && !recommendLoading && recommendList.length === 0" class="no-result">
+        <span class="no-result-text">暂无推荐，多阅读几篇后再试</span>
       </div>
 
       <template v-if="displayList.length > 0">
@@ -393,10 +433,10 @@ watch(sentinel, () => setupObserver())
       <div v-if="(searchActive ? searchLoading : news.loading) && displayList.length" class="load-indicator">
         <span class="load-dot" v-for="i in 3" :key="i"></span>
       </div>
-      <div v-if="!searchActive && news.hasMore && news.newsList.length && !news.loading" class="load-more-wrap">
+      <div v-if="!searchActive && news.activeSource !== 'recommend' && news.hasMore && news.newsList.length && !news.loading" class="load-more-wrap">
         <button class="load-more-btn" @click="news.loadNews(news.activeSource)">加载更多</button>
       </div>
-      <div v-if="!searchActive && !news.hasMore && news.newsList.length" class="no-more">
+      <div v-if="!searchActive && news.activeSource !== 'recommend' && !news.hasMore && news.newsList.length" class="no-more">
         <span class="no-more-line"></span>
         <span class="no-more-text">END OF FEED</span>
         <span class="no-more-line"></span>
@@ -590,6 +630,10 @@ watch(sentinel, () => setupObserver())
   white-space: nowrap; transition: all 0.18s; letter-spacing: 0.5px;
 }
 .chip.active { color: #fff; background: var(--brand); border-color: var(--brand); }
+.chip--recommend { display: flex; align-items: center; }
+.state-wrap { display: flex; justify-content: center; padding: 60px 20px; }
+.spinner { width: 26px; height: 26px; border: 2px solid var(--border); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg) } }
 
 .list-wrap { flex: 1; padding: 10px 10px 16px; }
 .sentinel { height: 1px; }

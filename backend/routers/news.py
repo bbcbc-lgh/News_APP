@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, Query, BackgroundTasks
 from fastapi.exceptions import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, text
 from config.database_conf import get_db
 from crud import news
 from crud.news import search_news, get_search_count
 from utils.response import success_response
+from utils.security import get_current_user
 
 router = APIRouter(prefix="/api/news", tags=["news"])
 
@@ -133,3 +135,71 @@ async def refresh(background_tasks: BackgroundTasks):
     from main import _run_fetch
     background_tasks.add_task(_run_fetch)
     return success_response(None, "采集任务已启动，请稍后刷新")
+
+
+@router.get("/recommend")
+async def recommend(
+    limit: int = Query(20, le=50),
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """基于用户近期阅读行为的标签，推荐同标签未读新闻"""
+    user_id = current_user.id
+
+    # 1. 取用户近 30 天 view/favorite 的新闻 id
+    rows = await db.execute(text("""
+        SELECT DISTINCT news_id FROM reading_behavior
+        WHERE user_id = :uid
+          AND action_type IN ('view', 'favorite')
+          AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        ORDER BY created_at DESC
+        LIMIT 50
+    """), {"uid": user_id})
+    read_ids = [r for r, in rows.all()]
+
+    def _news_fields():
+        return "id, title, title_zh, description, image, author, source_platform, views, publish_time"
+
+    if not read_ids:
+        result = await db.execute(text(
+            f"SELECT {_news_fields()} FROM news ORDER BY views DESC, publish_time DESC LIMIT :lim"
+        ), {"lim": limit})
+    else:
+        tag_rows = await db.execute(text(
+            f"SELECT DISTINCT tag_id FROM news_topic_tag WHERE news_id IN ({','.join(str(i) for i in read_ids)})"
+        ))
+        tag_ids = [r for r, in tag_rows.all()]
+
+        if not tag_ids:
+            result = await db.execute(text(
+                f"SELECT {_news_fields()} FROM news ORDER BY publish_time DESC LIMIT :lim"
+            ), {"lim": limit})
+        else:
+            tid_in = ",".join(str(i) for i in tag_ids)
+            rid_in = ",".join(str(i) for i in read_ids)
+            result = await db.execute(text(f"""
+                SELECT DISTINCT n.id, n.title, n.title_zh, n.description,
+                       n.image, n.author, n.source_platform, n.views, n.publish_time
+                FROM news n
+                JOIN news_topic_tag ntt ON ntt.news_id = n.id
+                WHERE ntt.tag_id IN ({tid_in})
+                  AND n.id NOT IN ({rid_in})
+                ORDER BY n.publish_time DESC
+                LIMIT :lim
+            """), {"lim": limit})
+
+    rows_out = result.mappings().all()
+    return success_response([
+        {
+            "id": r["id"],
+            "title": r["title"],
+            "title_zh": r["title_zh"],
+            "description": r["description"],
+            "image": r["image"],
+            "author": r["author"],
+            "source_platform": r["source_platform"],
+            "views": r["views"],
+            "publish_time": str(r["publish_time"]),
+        }
+        for r in rows_out
+    ], "推荐列表")

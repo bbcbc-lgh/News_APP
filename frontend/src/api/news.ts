@@ -80,4 +80,7 @@ export const newsApi = {
 
   refresh: () =>
     apiClient.post<null>('/api/news/refresh'),
+
+  recommend: (limit = 20) =>
+    apiClient.get<NewsItem[]>(`/api/news/recommend?limit=${limit}`, true),
 }
