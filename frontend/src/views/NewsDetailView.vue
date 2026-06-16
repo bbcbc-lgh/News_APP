@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { newsApi, type NewsDetail } from '@/api/news'
 import { favoriteApi } from '@/api/favorite'
 import { queueApi } from '@/api/queue'
+import { readingApi } from '@/api/readingBehavior'
 import { historyApi } from '@/api/history'
 
 const route = useRoute()
@@ -119,7 +120,10 @@ async function toggleFav() {
   favLoading.value = true
   try {
     if (isFav.value) { await favoriteApi.remove(detail.value.id) }
-    else { await favoriteApi.add(detail.value.id) }
+    else {
+      await favoriteApi.add(detail.value.id)
+      readingApi.report(detail.value.id, 'favorite').catch(() => {})
+    }
     isFav.value = !isFav.value
   } finally { favLoading.value = false }
 }
@@ -144,13 +148,17 @@ async function shareArticle() {
   const title = detail.value.titleZh || detail.value.title
   const text = detail.value.descriptionZh || detail.value.description || ''
   if (navigator.share) {
-    try { await navigator.share({ title, text, url }) } catch { /* 用户取消 */ }
+    try {
+      await navigator.share({ title, text, url })
+      readingApi.report(detail.value.id, 'share').catch(() => {})
+    } catch { /* 用户取消 */ }
     return
   }
   try {
     await navigator.clipboard.writeText(url)
     shareStatus.value = 'copied'
     setTimeout(() => shareStatus.value = 'idle', 1500)
+    readingApi.report(detail.value.id, 'share').catch(() => {})
   } catch { /* ignore */ }
 }
 
@@ -162,6 +170,44 @@ function updateProgress() {
   const scrollTop = target.scrollTop
   const docHeight = target.scrollHeight - target.clientHeight
   readProgress.value = docHeight > 0 ? Math.min(100, Math.max(0, (scrollTop / docHeight) * 100)) : 0
+  checkComplete()
+}
+
+// 阅读行为采集
+let behaviorTimer: ReturnType<typeof setInterval> | null = null
+let lastReportTime = 0
+let completedReported = false
+
+function startBehaviorTracking(newsId: number) {
+  stopBehaviorTracking()
+  lastReportTime = Date.now()
+  completedReported = false
+  readingApi.report(newsId, 'view', 0).catch(() => {})
+  behaviorTimer = setInterval(() => {
+    if (!detail.value) return
+    const inc = Math.floor((Date.now() - lastReportTime) / 1000)
+    lastReportTime = Date.now()
+    if (inc > 0) readingApi.report(detail.value.id, 'view', inc).catch(() => {})
+  }, 30000)
+}
+
+function stopBehaviorTracking() {
+  if (behaviorTimer) { clearInterval(behaviorTimer); behaviorTimer = null }
+}
+
+function reportFinalDuration() {
+  if (!detail.value) return
+  const inc = Math.floor((Date.now() - lastReportTime) / 1000)
+  if (inc > 0) readingApi.report(detail.value.id, 'view', inc).catch(() => {})
+  lastReportTime = Date.now()
+}
+
+function checkComplete() {
+  if (!detail.value || completedReported) return
+  if (readProgress.value >= 80) {
+    completedReported = true
+    readingApi.report(detail.value.id, 'complete').catch(() => {})
+  }
 }
 
 function getScrollTarget(): HTMLElement {
@@ -211,8 +257,11 @@ async function loadDetail() {
       favoriteApi.check(id),
       queueApi.check(id),
     ])
-    if (d.status === 'fulfilled') { detail.value = d.value; historyApi.add(id).catch(() => {}) }
-    else { error.value = '加载失败' }
+    if (d.status === 'fulfilled') {
+      detail.value = d.value
+      historyApi.add(id).catch(() => {})
+      startBehaviorTracking(id)
+    } else { error.value = '加载失败' }
     if (fav.status === 'fulfilled') isFav.value = fav.value.isFavorite
     if (queue.status === 'fulfilled') isInQueue.value = queue.value.inQueue
   } finally { loading.value = false }
@@ -226,6 +275,8 @@ onMounted(() => {
   updateProgress()
 })
 watch(() => route.params.id, () => {
+  reportFinalDuration()
+  stopBehaviorTracking()
   loadDetail()
   setTimeout(updateProgress, 100)
 })
@@ -233,6 +284,8 @@ onUnmounted(() => {
   window.removeEventListener('scroll', updateProgress, true)
   window.removeEventListener('resize', updateProgress)
   window.removeEventListener('keydown', onKeydown)
+  reportFinalDuration()
+  stopBehaviorTracking()
 })
 </script>
 

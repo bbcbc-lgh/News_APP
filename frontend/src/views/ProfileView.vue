@@ -229,6 +229,22 @@ onMounted(async () => {
       </button>
     </div>
 
+    <button class="quick-stats" @click="router.push('/stats')">
+      <div class="qs-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 3v18h18"/>
+          <path d="M7 14l3-3 3 2 5-6"/>
+        </svg>
+      </div>
+      <div class="qs-body">
+        <span class="qs-label">阅读统计</span>
+        <span class="qs-hint">查看阅读偏好与来源分布</span>
+      </div>
+      <svg class="qs-arrow" width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <path d="M5 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+
     <div class="tabs-bar">
       <button :class="['tab-btn', { active: tab === 'fav' }]" @click="switchTab('fav')">
         <svg width="14" height="14" viewBox="0 0 22 22" fill="none" style="vertical-align:-2px;margin-right:5px">
@@ -439,6 +455,25 @@ onMounted(async () => {
 .edit-btn:active { color: var(--brand); border-color: var(--brand); }
 
 .tabs-bar { background: var(--bg-card); display: flex; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+
+.quick-stats {
+  width: 100%; display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; background: var(--bg-card);
+  border-bottom: 1px solid var(--border); transition: background 0.15s;
+}
+.quick-stats:active { background: var(--bg-hover); }
+.qs-icon {
+  width: 36px; height: 36px; border-radius: var(--radius-sm);
+  background: var(--brand-dim); color: var(--brand);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.qs-body { flex: 1; display: flex; flex-direction: column; gap: 2px; text-align: left; }
+.qs-label {
+  font-family: 'Libre Baskerville', 'Noto Serif SC', serif;
+  font-size: 14px; font-weight: 700; color: var(--text-primary);
+}
+.qs-hint { font-size: 11px; color: var(--text-muted); }
+.qs-arrow { color: var(--text-muted); flex-shrink: 0; }
 .tab-btn {
   flex: 1; padding: 12px 0; font-size: 13px; font-weight: 600; color: var(--text-muted);
   border-bottom: 2px solid transparent; transition: all 0.15s;

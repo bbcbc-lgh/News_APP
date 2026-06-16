@@ -9,6 +9,7 @@ const router = createRouter({
     { path: '/news',       name: 'news',       component: () => import('@/views/NewsView.vue') },
     { path: '/news/detail/:id', name: 'newsDetail', component: () => import('@/views/NewsDetailView.vue') },
     { path: '/queue',      name: 'queue',      component: () => import('@/views/QueueView.vue') },
+    { path: '/stats',      name: 'stats',      component: () => import('@/views/StatsView.vue') },
     { path: '/profile',    name: 'profile',    component: () => import('@/views/ProfileView.vue') }
   ]
 })
