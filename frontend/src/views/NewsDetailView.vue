@@ -15,6 +15,7 @@ const favLoading = ref(false)
 const error = ref('')
 const shareStatus = ref<'idle' | 'copied'>('idle')
 const readProgress = ref(0)
+const showShortcuts = ref(false)
 
 const FONT_OPTS = [
   { key: 'sm', value: 13, btn: 11 },
@@ -146,6 +147,40 @@ function updateProgress() {
   readProgress.value = docHeight > 0 ? Math.min(100, Math.max(0, (scrollTop / docHeight) * 100)) : 0
 }
 
+function getScrollTarget(): HTMLElement {
+  const scrollEl = document.querySelector('.page-wrap') as HTMLElement | null
+  if (scrollEl && scrollEl.scrollHeight > scrollEl.clientHeight) return scrollEl
+  return (document.scrollingElement as HTMLElement) || document.documentElement
+}
+
+function onKeydown(e: KeyboardEvent) {
+  const t = e.target as HTMLElement
+  if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return
+  if (e.metaKey || e.ctrlKey || e.altKey) return
+
+  switch (e.key.toLowerCase()) {
+    case 'j':
+      e.preventDefault()
+      getScrollTarget().scrollBy({ top: getScrollTarget().clientHeight * 0.6, behavior: 'smooth' })
+      break
+    case 'k':
+      e.preventDefault()
+      getScrollTarget().scrollBy({ top: -getScrollTarget().clientHeight * 0.6, behavior: 'smooth' })
+      break
+    case 'f':
+      if (detail.value && !favLoading.value) { e.preventDefault(); toggleFav() }
+      break
+    case 'escape':
+      if (showShortcuts.value) { showShortcuts.value = false }
+      else { router.back() }
+      break
+    case '?':
+      e.preventDefault()
+      showShortcuts.value = !showShortcuts.value
+      break
+  }
+}
+
 async function loadDetail() {
   const id = Number(route.params.id)
   loading.value = true
@@ -164,6 +199,7 @@ onMounted(() => {
   loadDetail()
   window.addEventListener('scroll', updateProgress, true)
   window.addEventListener('resize', updateProgress)
+  window.addEventListener('keydown', onKeydown)
   updateProgress()
 })
 watch(() => route.params.id, () => {
@@ -173,6 +209,7 @@ watch(() => route.params.id, () => {
 onUnmounted(() => {
   window.removeEventListener('scroll', updateProgress, true)
   window.removeEventListener('resize', updateProgress)
+  window.removeEventListener('keydown', onKeydown)
 })
 </script>
 
@@ -217,8 +254,7 @@ onUnmounted(() => {
       <button class="retry-btn" @click="router.back()">返回</button>
     </div>
 
-    <article v-else-if="detail" class="content">
-      <div v-if="detail.image" class="cover-wrap">
+    <article v-else-if="detail" class="content">      <div v-if="detail.image" class="cover-wrap">
         <img :src="detail.image" class="cover-img" />
         <div class="cover-fade"></div>
       </div>
@@ -279,6 +315,29 @@ onUnmounted(() => {
       </div>
     </article>
     <div style="height: 32px"></div>
+
+    <button class="kbd-toggle" :class="{ hidden: showShortcuts }"
+      title="快捷键 (?) " @click="showShortcuts = true">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="6" width="20" height="12" rx="2"/>
+        <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h12"/>
+      </svg>
+    </button>
+    <div v-if="showShortcuts" class="kbd-panel" @click.self="showShortcuts = false">
+      <div class="kbd-card">
+        <div class="kbd-head">
+          <span class="kbd-title">键盘快捷键</span>
+          <button class="kbd-close" @click="showShortcuts = false">×</button>
+        </div>
+        <ul class="kbd-list">
+          <li><kbd>J</kbd><span>向下滚动</span></li>
+          <li><kbd>K</kbd><span>向上滚动</span></li>
+          <li><kbd>F</kbd><span>收藏 / 取消</span></li>
+          <li><kbd>Esc</kbd><span>返回</span></li>
+          <li><kbd>?</kbd><span>显示 / 隐藏帮助</span></li>
+        </ul>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -395,6 +454,43 @@ onUnmounted(() => {
 .spinner { width: 28px; height: 28px; border: 2px solid var(--border); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg) } }
 
+.kbd-toggle {
+  position: fixed; right: 16px; bottom: calc(var(--nav-h) + 16px);
+  width: 38px; height: 38px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-card); color: var(--text-muted);
+  box-shadow: var(--shadow-md); border: 1px solid var(--border);
+  transition: color 0.15s, transform 0.15s, opacity 0.2s;
+  z-index: 50;
+}
+.kbd-toggle:hover { color: var(--brand); transform: scale(1.05); }
+.kbd-toggle.hidden { opacity: 0; pointer-events: none; transform: scale(0.8); }
+
+.kbd-panel {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(26,22,18,0.25); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.kbd-card {
+  width: 100%; max-width: 320px; background: var(--bg-card);
+  border-radius: var(--radius); box-shadow: var(--shadow-md);
+  padding: 18px 20px;
+}
+.kbd-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.kbd-title {
+  font-family: 'Libre Baskerville', serif; font-size: 15px;
+  font-weight: 700; color: var(--text-primary);
+}
+.kbd-close { font-size: 22px; color: var(--text-muted); width: 28px; height: 28px; line-height: 1; }
+.kbd-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.kbd-list li { display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: 13px; color: var(--text-secondary); }
+.kbd-list kbd {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-bottom-width: 2px; border-radius: 4px; padding: 3px 8px; color: var(--text-primary);
+  min-width: 32px; text-align: center;
+}
+
 @media (min-width: 768px) {
   .detail-page { min-height: 100%; }
   .content { max-width: 960px; margin: 0 auto; }
@@ -402,6 +498,7 @@ onUnmounted(() => {
   .article-body { padding: 32px 40px 8px; }
   .article-title { font-size: 26px; }
   .related-section { padding: 0 40px 24px; }
+  .kbd-toggle { bottom: 24px; right: 24px; }
 }
 
 @media (min-width: 1200px) {
