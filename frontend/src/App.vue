@@ -20,6 +20,14 @@ function toggleTheme() {
   applyTheme(theme.value)
 }
 onMounted(() => applyTheme(theme.value))
+
+// 路由过渡方向：depth 更大 = 向前进入（slide-left），更小 = 向后返回（slide-right）
+const transitionName = ref('fade')
+router.beforeEach((to, from) => {
+  const toDepth = (to.meta.depth as number) ?? 0
+  const fromDepth = (from.meta.depth as number) ?? 0
+  transitionName.value = toDepth === fromDepth ? 'fade' : toDepth > fromDepth ? 'slide-left' : 'slide-right'
+})
 </script>
 
 <template>
@@ -60,7 +68,11 @@ onMounted(() => applyTheme(theme.value))
       </button>
     </nav>
     <div class="page-wrap">
-      <RouterView />
+      <RouterView v-slot="{ Component }">
+        <Transition :name="transitionName" mode="out-in">
+          <component :is="Component" :key="route.fullPath" />
+        </Transition>
+      </RouterView>
     </div>
   </div>
 </template>
@@ -275,4 +287,21 @@ input, textarea, select { outline: none; font-family: inherit; }
     padding-bottom: 0;
   }
 }
+
+/* 路由过渡动画 */
+.fade-enter-active,
+.fade-leave-active { transition: opacity 0.18s ease; }
+.fade-enter-from,
+.fade-leave-to { opacity: 0; }
+
+.slide-left-enter-active,
+.slide-left-leave-active,
+.slide-right-enter-active,
+.slide-right-leave-active {
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+.slide-left-enter-from  { opacity: 0; transform: translateX(32px); }
+.slide-left-leave-to    { opacity: 0; transform: translateX(-20px); }
+.slide-right-enter-from { opacity: 0; transform: translateX(-32px); }
+.slide-right-leave-to   { opacity: 0; transform: translateX(20px); }
 </style>
