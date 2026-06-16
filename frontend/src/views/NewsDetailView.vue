@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { newsApi, type NewsDetail } from '@/api/news'
 import { favoriteApi } from '@/api/favorite'
@@ -15,6 +15,25 @@ const favLoading = ref(false)
 const error = ref('')
 const shareStatus = ref<'idle' | 'copied'>('idle')
 const readProgress = ref(0)
+
+const FONT_OPTS = [
+  { key: 'sm', value: 13, btn: 11 },
+  { key: 'md', value: 15, btn: 13 },
+  { key: 'lg', value: 17, btn: 15 },
+] as const
+type FontKey = typeof FONT_OPTS[number]['key']
+
+const fontSize = ref<FontKey>(
+  (localStorage.getItem('reader-font-size') as FontKey) || 'md'
+)
+function setFontSize(k: FontKey) {
+  fontSize.value = k
+  localStorage.setItem('reader-font-size', k)
+}
+const fontSizePx = computed(() => {
+  const opt = FONT_OPTS.find((o) => o.key === fontSize.value)
+  return (opt?.value ?? 15) + 'px'
+})
 
 const SOURCE_META: Record<string, { label: string; color: string }> = {
   'hackernews': { label: 'HN',        color: 'var(--hn)' },
@@ -204,7 +223,7 @@ onUnmounted(() => {
         <div class="cover-fade"></div>
       </div>
 
-      <div class="article-body">
+      <div class="article-body" :style="{ '--reader-fs': fontSizePx }">
         <div class="title-section">
           <div v-if="detail.source" class="source-badge"
             :style="{ color: sourceMeta(detail.source).color, borderColor: sourceMeta(detail.source).color }">
@@ -224,6 +243,17 @@ onUnmounted(() => {
           <span class="divider-line"></span>
           <span class="divider-diamond"></span>
           <span class="divider-line"></span>
+        </div>
+
+        <div class="reader-tools" role="group" aria-label="字号">
+          <span class="tools-label">字号</span>
+          <div class="size-btns">
+            <button v-for="opt in FONT_OPTS" :key="opt.key"
+              :class="['size-btn', { active: fontSize === opt.key }]"
+              :style="{ fontSize: opt.btn + 'px', lineHeight: 1 }"
+              :aria-pressed="fontSize === opt.key"
+              @click="setFontSize(opt.key)">A</button>
+          </div>
         </div>
 
         <div class="article-text" v-html="renderContent(detail.contentZh || detail.descriptionZh || detail.content || detail.description || '')"></div>
@@ -312,12 +342,31 @@ onUnmounted(() => {
 .divider-line { flex: 1; height: 1px; background: var(--border); }
 .divider-diamond { width: 6px; height: 6px; background: var(--brand); transform: rotate(45deg); flex-shrink: 0; }
 
+.reader-tools {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 18px; padding: 8px 12px;
+  background: var(--bg-elevated); border-radius: var(--radius-sm);
+}
+.tools-label {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  font-weight: 500; letter-spacing: 2px; color: var(--text-muted);
+}
+.size-btns { display: flex; align-items: baseline; gap: 6px; }
+.size-btn {
+  width: 28px; height: 28px; display: inline-flex;
+  align-items: center; justify-content: center;
+  color: var(--text-secondary); border-radius: var(--radius-sm);
+  transition: background 0.15s, color 0.15s;
+}
+.size-btn:hover { background: var(--bg-hover); }
+.size-btn.active { background: var(--brand-dim); color: var(--brand); }
+
 .article-text {
-  font-size: 15px; line-height: 1.8; color: var(--text-primary); letter-spacing: 0.3px;
+  font-size: var(--reader-fs, 15px); line-height: 1.8; color: var(--text-primary); letter-spacing: 0.3px;
 }
 .article-text :deep(p) { margin: 0 0 1em; }
 .article-text :deep(p:last-child) { margin-bottom: 0; }
-.article-text :deep(h2), .article-text :deep(h3) { font-family: 'Noto Serif SC', serif; font-size: 16px; font-weight: 700; margin: 1.4em 0 0.6em; color: var(--text-primary); }
+.article-text :deep(h2), .article-text :deep(h3) { font-family: 'Noto Serif SC', serif; font-size: 1.08em; font-weight: 700; margin: 1.4em 0 0.6em; color: var(--text-primary); }
 .article-text :deep(ul), .article-text :deep(ol) { padding-left: 1.4em; margin: 0.6em 0 1em; }
 .article-text :deep(li) { margin-bottom: 0.4em; }
 .article-text :deep(a) { color: var(--brand); border-bottom: 1px solid rgba(200,134,10,0.3); }
@@ -375,7 +424,6 @@ onUnmounted(() => {
     padding: 28px 0 8px;
   }
   .article-title { font-size: 30px; }
-  .article-text { font-size: 16px; }
   .related-section {
     grid-column: 2;
     grid-row: 1 / span 2;
