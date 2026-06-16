@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { newsApi, type NewsDetail } from '@/api/news'
 import { favoriteApi } from '@/api/favorite'
@@ -14,6 +14,7 @@ const loading = ref(true)
 const favLoading = ref(false)
 const error = ref('')
 const shareStatus = ref<'idle' | 'copied'>('idle')
+const readProgress = ref(0)
 
 const SOURCE_META: Record<string, { label: string; color: string }> = {
   'hackernews': { label: 'HN',        color: 'var(--hn)' },
@@ -116,6 +117,16 @@ async function shareArticle() {
   } catch { /* ignore */ }
 }
 
+function updateProgress() {
+  const scrollEl = document.querySelector('.page-wrap') as HTMLElement | null
+  const target = scrollEl && scrollEl.scrollHeight > scrollEl.clientHeight
+    ? scrollEl
+    : document.scrollingElement as HTMLElement || document.documentElement
+  const scrollTop = target.scrollTop
+  const docHeight = target.scrollHeight - target.clientHeight
+  readProgress.value = docHeight > 0 ? Math.min(100, Math.max(0, (scrollTop / docHeight) * 100)) : 0
+}
+
 async function loadDetail() {
   const id = Number(route.params.id)
   loading.value = true
@@ -130,8 +141,20 @@ async function loadDetail() {
   } finally { loading.value = false }
 }
 
-onMounted(loadDetail)
-watch(() => route.params.id, loadDetail)
+onMounted(() => {
+  loadDetail()
+  window.addEventListener('scroll', updateProgress, true)
+  window.addEventListener('resize', updateProgress)
+  updateProgress()
+})
+watch(() => route.params.id, () => {
+  loadDetail()
+  setTimeout(updateProgress, 100)
+})
+onUnmounted(() => {
+  window.removeEventListener('scroll', updateProgress, true)
+  window.removeEventListener('resize', updateProgress)
+})
 </script>
 
 <template>
@@ -163,6 +186,9 @@ watch(() => route.params.id, loadDetail)
             stroke-width="1.8" stroke-linejoin="round"/>
         </svg>
       </button>
+      <div class="read-progress-track">
+        <div class="read-progress-bar" :style="{ width: readProgress + '%' }"></div>
+      </div>
     </header>
 
     <div v-if="loading" class="state-wrap"><div class="spinner"></div></div>
@@ -234,6 +260,14 @@ watch(() => route.params.id, loadDetail)
   background: rgba(247,244,239,0.95); backdrop-filter: blur(16px);
   display: flex; align-items: center; padding: 0 12px;
   border-bottom: 1px solid var(--border); box-shadow: var(--shadow-sm);
+}
+.read-progress-track {
+  position: absolute; left: 0; right: 0; bottom: -1px;
+  height: 2px; background: rgba(200,134,10,0.08); overflow: hidden;
+}
+.read-progress-bar {
+  height: 100%; background: var(--brand);
+  transition: width 0.1s linear;
 }
 .back-btn { color: var(--text-primary); padding: 6px; display: flex; align-items: center; margin-right: 4px; }
 .top-label {
