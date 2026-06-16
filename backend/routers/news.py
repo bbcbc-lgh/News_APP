@@ -80,6 +80,8 @@ async def get_detail(news_id: int = Query(..., alias="id"), db: AsyncSession = D
             "sourceUrl": news_detail.source_url,
             "publishTime": news_detail.publish_time,
             "views": news_detail.views,
+            "upvotes": news_detail.upvotes or 0,
+            "downvotes": news_detail.downvotes or 0,
             "relatedNews": related_news
         })
 

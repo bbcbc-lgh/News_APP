@@ -31,6 +31,8 @@ export interface NewsDetail {
   sourceUrl: string | null
   publishTime: string
   views: number
+  upvotes: number
+  downvotes: number
   relatedNews: NewsItem[]
 }
 

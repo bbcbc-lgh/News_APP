@@ -44,6 +44,8 @@ class News(Base):
     description_zh: Mapped[Optional[str]] = mapped_column(Text, comment="中文摘要")
     content_zh: Mapped[Optional[str]] = mapped_column(Text, comment="中文正文")
     views: Mapped[int] = mapped_column(Integer, default=0, nullable=False,comment="浏览量")
+    upvotes: Mapped[int] = mapped_column(Integer, default=0, nullable=False, comment="点赞数")
+    downvotes: Mapped[int] = mapped_column(Integer, default=0, nullable=False, comment="踩数")
     publish_time: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, comment="发布时间")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)

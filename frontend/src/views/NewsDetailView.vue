@@ -7,6 +7,7 @@ import { queueApi } from '@/api/queue'
 import { readingApi } from '@/api/readingBehavior'
 import { historyApi } from '@/api/history'
 import { readingProgressApi } from '@/api/readingProgress'
+import { voteApi, type VoteResult } from '@/api/vote'
 
 const route = useRoute()
 const router = useRouter()
@@ -21,6 +22,10 @@ const error = ref('')
 const shareStatus = ref<'idle' | 'copied'>('idle')
 const readProgress = ref(0)
 const showShortcuts = ref(false)
+const upvotes = ref(0)
+const downvotes = ref(0)
+const userVote = ref<number | null>(null)
+const voteLoading = ref(false)
 
 const FONT_OPTS = [
   { key: 'sm', value: 13, btn: 11 },
@@ -114,6 +119,19 @@ function renderContent(raw: string): string {
     .map(p => `<p>${escapeHtml(p.trim()).replace(/\n/g, '<br>')}</p>`)
     .filter(p => p !== '<p></p>')
     .join('')
+}
+
+async function castVote(value: number) {
+  if (!detail.value || voteLoading.value) return
+  voteLoading.value = true
+  try {
+    // 再次点同一方向 = 撤销
+    const newValue = userVote.value === value ? 0 : value
+    const res = await voteApi.cast(detail.value.id, newValue)
+    upvotes.value = res.upvotes
+    downvotes.value = res.downvotes
+    userVote.value = res.userVote
+  } catch { /* 未登录静默失败 */ } finally { voteLoading.value = false }
 }
 
 async function toggleFav() {
@@ -290,13 +308,16 @@ async function loadDetail() {
   isFav.value = false
   isInQueue.value = false
   try {
-    const [d, fav, queue] = await Promise.allSettled([
+    const [d, fav, queue, voteState] = await Promise.allSettled([
       newsApi.getDetail(id),
       favoriteApi.check(id),
       queueApi.check(id),
+      voteApi.get(id),
     ])
     if (d.status === 'fulfilled') {
       detail.value = d.value
+      upvotes.value = d.value.upvotes
+      downvotes.value = d.value.downvotes
       historyApi.add(id).catch(() => {})
       startBehaviorTracking(id)
       restoreProgress(id)
@@ -304,6 +325,7 @@ async function loadDetail() {
     } else { error.value = '加载失败' }
     if (fav.status === 'fulfilled') isFav.value = fav.value.isFavorite
     if (queue.status === 'fulfilled') isInQueue.value = queue.value.inQueue
+    if (voteState.status === 'fulfilled') userVote.value = voteState.value.userVote
   } finally { loading.value = false }
 }
 
@@ -351,7 +373,7 @@ onUnmounted(() => {
           <path d="M8 13h6M8 16h4" :stroke="isInQueue ? 'var(--brand)' : 'currentColor'" stroke-width="1.6" stroke-linecap="round"/>
         </svg>
       </button>
-      <button class="share-btn" :class="{ copied: shareStatus === 'copied' }"
+      <button :class="['share-btn', { copied: shareStatus === 'copied' }]"
         :title="shareStatus === 'copied' ? '已复制链接' : '分享'" @click="shareArticle">
         <svg v-if="shareStatus === 'copied'" width="20" height="20" viewBox="0 0 20 20" fill="none">
           <path d="M5 10L9 14L15 6" stroke="var(--brand)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -362,6 +384,22 @@ onUnmounted(() => {
           <circle cx="16" cy="16.5" r="2.4" stroke="currentColor" stroke-width="1.6"/>
           <path d="M8.1 10L13.9 6.6M8.1 12L13.9 15.4" stroke="currentColor" stroke-width="1.6"/>
         </svg>
+      </button>
+      <button :class="['vote-btn', { active: userVote === 1 }]" :disabled="voteLoading"
+        title="点赞" @click="castVote(1)">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+          <path d="M10 4L4 12h4v4h4v-4h4L10 4Z" :fill="userVote === 1 ? 'var(--brand)' : 'none'"
+            :stroke="userVote === 1 ? 'var(--brand)' : 'currentColor'" stroke-width="1.6" stroke-linejoin="round"/>
+        </svg>
+        <span v-if="upvotes > 0" class="vote-count">{{ upvotes }}</span>
+      </button>
+      <button :class="['vote-btn', 'vote-down', { active: userVote === -1 }]" :disabled="voteLoading"
+        title="踩" @click="castVote(-1)">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+          <path d="M10 16L4 8h4V4h4v4h4L10 16Z" :fill="userVote === -1 ? 'var(--text-secondary)' : 'none'"
+            :stroke="userVote === -1 ? 'var(--text-secondary)' : 'currentColor'" stroke-width="1.6" stroke-linejoin="round"/>
+        </svg>
+        <span v-if="downvotes > 0" class="vote-count">{{ downvotes }}</span>
       </button>
       <button :class="['fav-btn', { active: isFav }]" :disabled="favLoading" @click="toggleFav">
         <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
@@ -509,6 +547,15 @@ onUnmounted(() => {
 }
 .share-btn:active { transform: scale(0.85); }
 .share-btn.copied { color: var(--brand); }
+
+.vote-btn {
+  padding: 4px 6px; display: flex; align-items: center; gap: 3px;
+  color: var(--text-secondary); transition: transform 0.2s, color 0.2s;
+}
+.vote-btn:active { transform: scale(0.85); }
+.vote-btn.active { color: var(--brand); }
+.vote-btn.vote-down.active { color: var(--text-secondary); }
+.vote-count { font-family: 'JetBrains Mono', monospace; font-size: 10px; }
 
 .state-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 80px 20px; }
 .err-state p { font-size: 15px; color: var(--text-secondary); }
