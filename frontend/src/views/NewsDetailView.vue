@@ -10,6 +10,7 @@ import { readingProgressApi } from '@/api/readingProgress'
 import { voteApi, type VoteResult } from '@/api/vote'
 import { commentApi, type CommentItem } from '@/api/comment'
 import { useAuthStore } from '@/stores/authStore'
+import { useNewsStore } from '@/stores/newsStore'
 
 const route = useRoute()
 const router = useRouter()
@@ -29,6 +30,35 @@ const downvotes = ref(0)
 const userVote = ref<number | null>(null)
 const voteLoading = ref(false)
 const authStore = useAuthStore()
+const newsStore = useNewsStore()
+
+// 触控手势：左滑 = 下一篇，右滑 = 返回/上一篇
+let touchStartX = 0
+let touchStartY = 0
+
+function onTouchStart(e: TouchEvent) {
+  touchStartX = e.changedTouches[0].screenX
+  touchStartY = e.changedTouches[0].screenY
+}
+
+function onTouchEnd(e: TouchEvent) {
+  const dx = e.changedTouches[0].screenX - touchStartX
+  const dy = e.changedTouches[0].screenY - touchStartY
+  // 水平滑动幅度要大于垂直，且超过阈值 60px
+  if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return
+  if (!detail.value) return
+  const list = newsStore.newsList
+  const idx = list.findIndex(n => n.id === detail.value!.id)
+  if (dx < 0) {
+    // 左滑 = 下一篇
+    const next = idx >= 0 && idx < list.length - 1 ? list[idx + 1] : null
+    if (next) router.push(`/news/detail/${next.id}`)
+  } else {
+    // 右滑 = 上一篇 / 返回
+    if (idx > 0) router.push(`/news/detail/${list[idx - 1].id}`)
+    else router.back()
+  }
+}
 
 // 评论
 const comments = ref<CommentItem[]>([])
@@ -394,6 +424,8 @@ onMounted(() => {
   window.addEventListener('scroll', updateProgress, true)
   window.addEventListener('resize', updateProgress)
   window.addEventListener('keydown', onKeydown)
+  window.addEventListener('touchstart', onTouchStart, { passive: true })
+  window.addEventListener('touchend', onTouchEnd, { passive: true })
   updateProgress()
 })
 watch(() => route.params.id, () => {
@@ -408,6 +440,8 @@ onUnmounted(() => {
   window.removeEventListener('scroll', updateProgress, true)
   window.removeEventListener('resize', updateProgress)
   window.removeEventListener('keydown', onKeydown)
+  window.removeEventListener('touchstart', onTouchStart)
+  window.removeEventListener('touchend', onTouchEnd)
   reportFinalDuration()
   stopBehaviorTracking()
   saveProgress()
