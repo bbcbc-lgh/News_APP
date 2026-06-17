@@ -208,7 +208,7 @@ body::before {
 }
 .nav-item.active { color: var(--brand); }
 .nav-item.active::after { transform: translateX(-50%) scaleX(1); }
-.nav-label { font-size: 10px; font-weight: 500; letter-spacing: 0.5px; font-family: 'JetBrains Mono', monospace; }
+.nav-label { font-size: 11px; font-weight: 500; letter-spacing: 0; font-family: 'Noto Sans SC', sans-serif; }
 
 .theme-toggle { font-family: inherit; }
 .theme-toggle:hover { color: var(--brand); }
@@ -266,8 +266,8 @@ input, textarea, select { outline: none; font-family: inherit; }
   }
   .nav-label {
     display: block;
-    font-size: 9px;
-    letter-spacing: 1px;
+    font-size: 11px;
+    letter-spacing: 0;
   }
 
   .theme-toggle {

@@ -149,7 +149,8 @@ function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
 }
 function formatViews(v: number): string {
-  return v >= 10000 ? `${(v / 10000).toFixed(1)}万` : String(v)
+  const count = v >= 10000 ? `${(v / 10000).toFixed(1)}万` : String(v)
+  return `${count} reads`
 }
 
 function escapeHtml(raw: string): string {
@@ -536,7 +537,7 @@ onUnmounted(() => {
             <span class="meta-sep">·</span>
             <span>{{ formatDate(detail.publishTime) }}</span>
             <span class="meta-sep">·</span>
-            <span>{{ formatViews(detail.views) }} reads</span>
+            <span>{{ formatViews(detail.views) }}</span>
           </div>
         </div>
 
@@ -791,7 +792,7 @@ onUnmounted(() => {
 }
 .related-item:active { opacity: 0.6; }
 .related-num { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); flex-shrink: 0; padding-top: 3px; min-width: 20px; }
-.related-text { flex: 1; font-size: 14px; color: var(--text-primary); line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.related-text { flex: 1; font-size: 13px; color: var(--text-primary); line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* 评论区 */
 .comment-section { padding: 0 18px 24px; border-top: 1px solid var(--border); }
@@ -911,8 +912,9 @@ onUnmounted(() => {
   .content {
     max-width: 1180px;
     display: grid;
-    grid-template-columns: minmax(0, 760px) 340px;
-    column-gap: 40px;
+    max-width: 1120px;
+    grid-template-columns: minmax(0, 740px) 300px;
+    column-gap: 36px;
     align-items: start;
     padding: 28px;
   }
@@ -925,7 +927,7 @@ onUnmounted(() => {
     grid-column: 1;
     padding: 28px 0 8px;
   }
-  .article-title { font-size: 30px; }
+  .article-title { font-size: 28px; }
   .related-section {
     grid-column: 2;
     grid-row: 1 / span 2;

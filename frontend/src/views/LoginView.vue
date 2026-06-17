@@ -131,8 +131,8 @@ async function submit() {
   max-width: 360px;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 28px 24px 24px;
+  border-radius: var(--radius);
+  padding: 26px 24px 22px;
   position: relative;
   z-index: 1;
   box-shadow: var(--shadow-md);
@@ -147,7 +147,7 @@ async function submit() {
 .card-eyebrow {
   font-family: 'JetBrains Mono', monospace;
   font-size: 10px; font-weight: 500;
-  letter-spacing: 3px; color: var(--brand); margin-bottom: 6px;
+  letter-spacing: 1.8px; color: var(--brand); margin-bottom: 6px;
 }
 .card-title {
   font-family: 'Libre Baskerville', 'Noto Serif SC', serif;
@@ -159,7 +159,7 @@ label {
   display: block;
   font-family: 'JetBrains Mono', monospace;
   font-size: 10px; font-weight: 500;
-  color: var(--text-muted); letter-spacing: 2px; margin-bottom: 7px;
+  color: var(--text-muted); letter-spacing: 1.2px; margin-bottom: 7px;
 }
 input {
   width: 100%; padding: 11px 14px;
@@ -183,7 +183,7 @@ input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-dim)
   width: 100%; padding: 13px;
   background: var(--brand); color: #fff;
   border-radius: var(--radius-sm);
-  font-size: 14px; font-weight: 700; letter-spacing: 3px;
+  font-size: 14px; font-weight: 700; letter-spacing: 1.5px;
   margin-top: 4px; margin-bottom: 18px;
   transition: opacity 0.18s, transform 0.12s, box-shadow 0.18s;
   display: flex; align-items: center; justify-content: center; min-height: 46px;

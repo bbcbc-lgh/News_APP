@@ -50,7 +50,7 @@ async function submit() {
       </div>
       <div class="field">
         <label>CONFIRM PASSWORD</label>
-        <input v-model="confirm" type="password" placeholder="再次输入密码" @keyup.enter="submit" autocomplete="new-password" />
+        <input v-model="confirm" type="password" placeholder="再次输入密码" @keyup.enter="submit" autocomplete="off" />
       </div>
       <p v-if="error" class="err-msg">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="flex-shrink:0;margin-top:1px">
@@ -114,7 +114,7 @@ async function submit() {
 .auth-card {
   width: 100%; max-width: 360px;
   background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: 16px; padding: 28px 24px 24px;
+  border-radius: var(--radius); padding: 26px 24px 22px;
   position: relative; z-index: 1; box-shadow: var(--shadow-md);
 }
 .auth-card::before {
@@ -126,7 +126,7 @@ async function submit() {
 .card-eyebrow {
   font-family: 'JetBrains Mono', monospace;
   font-size: 10px; font-weight: 500;
-  letter-spacing: 3px; color: var(--brand); margin-bottom: 6px;
+  letter-spacing: 1.8px; color: var(--brand); margin-bottom: 6px;
 }
 .card-title {
   font-family: 'Libre Baskerville', 'Noto Serif SC', serif;
@@ -137,7 +137,7 @@ async function submit() {
 label {
   display: block; font-family: 'JetBrains Mono', monospace;
   font-size: 10px; font-weight: 500;
-  color: var(--text-muted); letter-spacing: 2px; margin-bottom: 7px;
+  color: var(--text-muted); letter-spacing: 1.2px; margin-bottom: 7px;
 }
 input {
   width: 100%; padding: 11px 14px; background: var(--bg);
@@ -156,7 +156,7 @@ input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-dim)
 .btn-submit {
   width: 100%; padding: 13px; background: var(--brand); color: #fff;
   border-radius: var(--radius-sm); font-size: 14px; font-weight: 700;
-  letter-spacing: 3px; margin-top: 4px; margin-bottom: 18px;
+  letter-spacing: 1.5px; margin-top: 4px; margin-bottom: 18px;
   transition: opacity 0.18s, transform 0.12s, box-shadow 0.18s;
   display: flex; align-items: center; justify-content: center; min-height: 46px;
 }
