@@ -66,7 +66,7 @@ onMounted(() => loadQueue(true))
 <template>
   <div class="queue-page">
     <header class="top-bar">
-      <button class="back-btn" @click="router.back()">
+      <button class="back-btn" @click="router.back()" aria-label="返回">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
           <path d="M13 4L7 10L13 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
@@ -104,7 +104,7 @@ onMounted(() => loadQueue(true))
             <span>{{ item.author || '未知' }}</span><span class="sep">·</span><span>{{ timeAgo(item.queueTime) }}</span>
           </div>
         </div>
-        <button class="del-btn" @click.stop="removeItem(item.id)" title="移出队列">
+        <button class="del-btn" @click.stop="removeItem(item.id)" title="移出队列" aria-label="删除">
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
             <path d="M3 3L11 11M11 3L3 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
           </svg>

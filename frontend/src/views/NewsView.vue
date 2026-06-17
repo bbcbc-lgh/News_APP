@@ -343,7 +343,7 @@ async function menuQueue() {
         </div>
       </div>
       <div class="header-right">
-        <button class="refresh-btn" :class="{ spinning: refreshing, done: refreshDone }" @click="handleRefresh" :title="refreshDone ? '采集中，稍后自动更新' : '获取最新资讯'">
+        <button class="refresh-btn" :class="{ spinning: refreshing, done: refreshDone }" @click="handleRefresh" :title="refreshDone ? '采集中，稍后自动更新' : '获取最新资讯'" aria-label="刷新">
           <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
             <path d="M13 7.5A5.5 5.5 0 1 1 7.5 2a5.5 5.5 0 0 1 3.89 1.61L13 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M13 2v3h-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -386,7 +386,7 @@ async function menuQueue() {
           @keydown.enter="commitSearch"
           @keydown.escape="exitSearch"
         />
-        <button v-if="searchActive" class="search-clear" @click="exitSearch">
+        <button v-if="searchActive" class="search-clear" @click="exitSearch" aria-label="清除搜索">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
             <path d="M2 2L10 10M10 2L2 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
           </svg>
@@ -435,7 +435,7 @@ async function menuQueue() {
       :style="{ top: 'calc(54px + 44px + 56px)' }">
       <div class="history-head">
         <span class="history-label">RECENT</span>
-        <button class="history-clear" @click="clearHistory">清空</button>
+        <button class="history-clear" @click="clearHistory" aria-label="清空搜索历史">清空</button>
       </div>
       <div class="history-chips">
         <button v-for="h in historyList" :key="h.id" class="history-chip"
@@ -445,7 +445,7 @@ async function menuQueue() {
             <path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
           </svg>
           <span class="hc-text">{{ h.query }}</span>
-          <span class="hc-remove" @click="removeHistory($event, h.id)">
+          <span class="hc-remove" @click="removeHistory($event, h.id)" aria-label="删除此搜索记录">
             <svg width="9" height="9" viewBox="0 0 12 12" fill="none">
               <path d="M2 2L10 10M10 2L2 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
             </svg>

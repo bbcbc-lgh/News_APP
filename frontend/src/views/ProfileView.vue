@@ -222,7 +222,7 @@ onMounted(async () => {
         </div>
         <p class="bio">{{ auth.userInfo?.bio || '这个人很懒，什么都没留下~' }}</p>
       </div>
-      <button class="edit-btn" @click="openEdit">
+      <button class="edit-btn" @click="openEdit" aria-label="编辑">
         <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
           <path d="M9.5 2.5L11.5 4.5L4.5 11.5H2.5V9.5L9.5 2.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
         </svg>编辑
@@ -305,12 +305,12 @@ onMounted(async () => {
             <span>{{ item.author || '未知' }}</span><span class="sep">·</span><span>{{ timeAgo(item.favoriteTime) }}</span>
           </div>
         </div>
-        <button class="move-btn" title="移动到文件夹" @click.stop="moveTarget = { newsId: item.id, title: item.title }">
+        <button class="move-btn" title="移动到文件夹" aria-label="移动到文件夹" @click.stop="moveTarget = { newsId: item.id, title: item.title }">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
             <path d="M2 4h5l1.5 2H14v7H2V4z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
           </svg>
         </button>
-        <button class="del-btn" @click.stop="removeFav(item.id)">
+        <button class="del-btn" aria-label="删除收藏" @click.stop="removeFav(item.id)">
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M3 3L11 11M11 3L3 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         </button>
       </div>
@@ -342,7 +342,7 @@ onMounted(async () => {
             <span>{{ item.author || '未知' }}</span><span class="sep">·</span><span>{{ timeAgo(item.viewTime) }}</span>
           </div>
         </div>
-        <button class="del-btn" @click.stop="removeHist(item.historyId)">
+        <button class="del-btn" aria-label="删除" @click.stop="removeHist(item.historyId)">
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M3 3L11 11M11 3L3 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         </button>
       </div>

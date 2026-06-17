@@ -455,14 +455,14 @@ onUnmounted(() => {
 <template>
   <div class="detail-page">
     <header class="top-bar">
-      <button class="back-btn" @click="router.back()">
+      <button class="back-btn" aria-label="返回" @click="router.back()">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
           <path d="M13 4L7 10L13 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </button>
       <span class="top-label">ARTICLE</span>
       <button class="queue-btn" :class="{ active: isInQueue }" :disabled="queueLoading"
-        :title="isInQueue ? '已加入稍后阅读' : '稍后阅读'" @click="toggleQueue">
+        aria-label="加入稍后阅读" :title="isInQueue ? '已加入稍后阅读' : '稍后阅读'" @click="toggleQueue">
         <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
           <path d="M5 4h9l4 4v10a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1z"
             :stroke="isInQueue ? 'var(--brand)' : 'currentColor'" stroke-width="1.6" stroke-linejoin="round"/>
@@ -471,7 +471,7 @@ onUnmounted(() => {
         </svg>
       </button>
       <button :class="['share-btn', { copied: shareStatus === 'copied' }]"
-        :title="shareStatus === 'copied' ? '已复制链接' : '分享'" @click="shareArticle">
+        aria-label="分享" :title="shareStatus === 'copied' ? '已复制链接' : '分享'" @click="shareArticle">
         <svg v-if="shareStatus === 'copied'" width="20" height="20" viewBox="0 0 20 20" fill="none">
           <path d="M5 10L9 14L15 6" stroke="var(--brand)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
@@ -483,7 +483,7 @@ onUnmounted(() => {
         </svg>
       </button>
       <button :class="['vote-btn', { active: userVote === 1 }]" :disabled="voteLoading"
-        title="点赞" @click="castVote(1)">
+        aria-label="点赞" title="点赞" @click="castVote(1)">
         <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
           <path d="M10 4L4 12h4v4h4v-4h4L10 4Z" :fill="userVote === 1 ? 'var(--brand)' : 'none'"
             :stroke="userVote === 1 ? 'var(--brand)' : 'currentColor'" stroke-width="1.6" stroke-linejoin="round"/>
@@ -491,14 +491,14 @@ onUnmounted(() => {
         <span v-if="upvotes > 0" class="vote-count">{{ upvotes }}</span>
       </button>
       <button :class="['vote-btn', 'vote-down', { active: userVote === -1 }]" :disabled="voteLoading"
-        title="踩" @click="castVote(-1)">
+        aria-label="踩" title="踩" @click="castVote(-1)">
         <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
           <path d="M10 16L4 8h4V4h4v4h4L10 16Z" :fill="userVote === -1 ? 'var(--text-secondary)' : 'none'"
             :stroke="userVote === -1 ? 'var(--text-secondary)' : 'currentColor'" stroke-width="1.6" stroke-linejoin="round"/>
         </svg>
         <span v-if="downvotes > 0" class="vote-count">{{ downvotes }}</span>
       </button>
-      <button :class="['fav-btn', { active: isFav }]" :disabled="favLoading" @click="toggleFav">
+      <button :class="['fav-btn', { active: isFav }]" :disabled="favLoading" aria-label="收藏" @click="toggleFav">
         <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
           <path d="M11 19L3.5 11.5C2 10 2 7.5 3.5 6C5 4.5 7.5 4.5 9 6L11 8L13 6C14.5 4.5 17 4.5 18.5 6C20 7.5 20 10 18.5 11.5L11 19Z"
             :fill="isFav ? 'var(--brand)' : 'none'"
@@ -641,7 +641,7 @@ onUnmounted(() => {
     <div style="height: 32px"></div>
 
     <button class="kbd-toggle" :class="{ hidden: showShortcuts }"
-      title="快捷键 (?) " @click="showShortcuts = true">
+      aria-label="快捷键帮助" title="快捷键 (?) " @click="showShortcuts = true">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <rect x="2" y="6" width="20" height="12" rx="2"/>
         <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h12"/>
@@ -651,7 +651,7 @@ onUnmounted(() => {
       <div class="kbd-card">
         <div class="kbd-head">
           <span class="kbd-title">键盘快捷键</span>
-          <button class="kbd-close" @click="showShortcuts = false">×</button>
+          <button class="kbd-close" aria-label="关闭" @click="showShortcuts = false">×</button>
         </div>
         <ul class="kbd-list">
           <li><kbd>J</kbd><span>向下滚动</span></li>

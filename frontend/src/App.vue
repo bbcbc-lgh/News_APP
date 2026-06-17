@@ -55,7 +55,7 @@ router.beforeEach((to, from) => {
         </svg>
         <span class="nav-label">我的</span>
       </RouterLink>
-      <button class="nav-item theme-toggle" @click="toggleTheme"
+      <button class="nav-item theme-toggle" @click="toggleTheme" aria-label="切换主题"
         :title="theme === 'light' ? '切换到夜间模式' : '切换到日间模式'">
         <svg v-if="theme === 'light'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
