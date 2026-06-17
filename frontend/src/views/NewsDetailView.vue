@@ -265,7 +265,7 @@ async function shareArticle() {
   try {
     await navigator.clipboard.writeText(url)
     shareStatus.value = 'copied'
-    setTimeout(() => shareStatus.value = 'idle', 1500)
+    pendingTimers.push(setTimeout(() => shareStatus.value = 'idle', 1500))
     readingApi.report(detail.value.id, 'share').catch(() => {})
   } catch { /* ignore */ }
 }
@@ -289,6 +289,7 @@ let completedReported = false
 // 阅读进度持久化
 let progressTimer: ReturnType<typeof setInterval> | null = null
 let lastSavedPosition = -1
+let pendingTimers: ReturnType<typeof setTimeout>[] = []
 
 function startBehaviorTracking(newsId: number) {
   stopBehaviorTracking()
@@ -354,9 +355,9 @@ async function restoreProgress(newsId: number) {
     const res = await readingProgressApi.get(newsId)
     if (res.lastPosition > 100) {
       await nextTick()
-      setTimeout(() => {
+      pendingTimers.push(setTimeout(() => {
         getScrollTarget().scrollTo({ top: res.lastPosition, behavior: 'instant' })
-      }, 300)
+      }, 300))
     }
   } catch { /* 未登录时忽略 */ }
 }
@@ -434,7 +435,7 @@ watch(() => route.params.id, () => {
   saveProgress()
   stopProgressTracking()
   loadDetail()
-  setTimeout(updateProgress, 100)
+  pendingTimers.push(setTimeout(updateProgress, 100))
 })
 onUnmounted(() => {
   window.removeEventListener('scroll', updateProgress, true)
@@ -446,6 +447,8 @@ onUnmounted(() => {
   stopBehaviorTracking()
   saveProgress()
   stopProgressTracking()
+  pendingTimers.forEach(t => clearTimeout(t))
+  pendingTimers = []
 })
 </script>
 

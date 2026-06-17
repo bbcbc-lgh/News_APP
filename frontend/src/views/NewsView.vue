@@ -264,7 +264,12 @@ onMounted(async () => {
   tagApi.listAll().then(list => { allTags.value = list }).catch(() => {})
 })
 
-onUnmounted(() => { observer?.disconnect() })
+onUnmounted(() => {
+  observer?.disconnect()
+  if (searchTimer) clearTimeout(searchTimer)
+  if (suggestTimer) clearTimeout(suggestTimer)
+  if (longPressTimer) clearTimeout(longPressTimer)
+})
 
 watch(() => news.activeSource, (src) => {
   if (src !== 'recommend') news.loadNews(src, true)
