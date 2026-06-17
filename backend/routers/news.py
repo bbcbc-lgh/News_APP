@@ -141,7 +141,7 @@ async def refresh(background_tasks: BackgroundTasks):
 
 
 @router.get("/author/{author_name}", summary="获取作者文章")
-async def get_by_author(
+async def list_by_author(
     author_name: str,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, alias="pageSize", le=100),

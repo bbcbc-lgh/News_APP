@@ -159,6 +159,9 @@ async def get_count_by_author(db: AsyncSession, author: str) -> int:
     stmt = select(func.count(News.id)).where(News.author == author)
     result = await db.execute(stmt)
     return result.scalar_one()
+
+
+async def get_detail(db: AsyncSession, news_id: int):
     result = await db.execute(select(News).where(News.id == news_id))
     return result.scalar_one_or_none()
 
