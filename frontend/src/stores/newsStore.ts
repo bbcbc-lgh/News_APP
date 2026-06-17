@@ -45,5 +45,14 @@ export const useNewsStore = defineStore('news', () => {
     loadNews(id, true)
   }
 
-  return { categories, activeSource, newsList, page, hasMore, loading, loadCategories, loadNews, setCategory }
+  function resetState() {
+    loadId++
+    activeSource.value = categories.value[0]?.id || 'all'
+    newsList.value = []
+    page.value = 1
+    hasMore.value = true
+    loading.value = false
+  }
+
+  return { categories, activeSource, newsList, page, hasMore, loading, loadCategories, loadNews, setCategory, resetState }
 })

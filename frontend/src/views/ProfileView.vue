@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { favoriteApi, type FavoriteItem } from '@/api/favorite'
@@ -14,6 +14,8 @@ const tab = ref<'fav' | 'history'>('fav')
 const editMode = ref(false)
 const pwdMode = ref(false)
 const editForm = ref({ nickname: '', bio: '', gender: 'unknown' as 'male' | 'female' | 'unknown' })
+const avatarFileInput = ref<HTMLInputElement | null>(null)
+const avatarUploading = ref(false)
 const overlayMousedownTarget = ref<EventTarget | null>(null)
 const pwdForm = ref({ oldPassword: '', newPassword: '', confirm: '' })
 const formErr = ref('')
@@ -39,6 +41,16 @@ const SOURCE_META: Record<string, { label: string; color: string }> = {
   google_ai: { label: 'Google AI', color: 'var(--google)' },
   mit: { label: 'MIT', color: 'var(--mit-fg)' },
 }
+
+const DEFAULT_AVATARS = [
+  { label: 'Amber', url: 'https://api.dicebear.com/9.x/initials/svg?seed=Nexus&backgroundColor=c8860a&fontFamily=Georgia&fontWeight=700' },
+  { label: 'Ink', url: 'https://api.dicebear.com/9.x/initials/svg?seed=AI&backgroundColor=1a1612&fontFamily=Georgia&fontWeight=700' },
+  { label: 'Open', url: 'https://api.dicebear.com/9.x/initials/svg?seed=OpenAI&backgroundColor=0d8a6a&fontFamily=Arial&fontWeight=700' },
+  { label: 'Google', url: 'https://api.dicebear.com/9.x/initials/svg?seed=Google&backgroundColor=1a73e8&fontFamily=Arial&fontWeight=700' },
+  { label: 'MIT', url: 'https://api.dicebear.com/9.x/initials/svg?seed=MIT&backgroundColor=c0364d&fontFamily=Georgia&fontWeight=700' },
+]
+
+const currentAvatar = computed(() => auth.userInfo?.avatar || '')
 
 function sourceMeta(source?: string | null) {
   return SOURCE_META[source || ''] || { label: 'AI', color: 'var(--brand)' }
@@ -73,6 +85,28 @@ function openEdit() {
   if (!auth.userInfo) return
   editForm.value = { nickname: auth.userInfo.nickname || '', bio: auth.userInfo.bio || '', gender: (auth.userInfo.gender as any) || 'unknown' }
   editMode.value = true; formErr.value = ''
+}
+async function selectDefaultAvatar(url: string) {
+  if (avatarUploading.value) return
+  avatarUploading.value = true; formErr.value = ''
+  try {
+    await auth.updateInfo({ avatar: url })
+  } catch (e) { formErr.value = e instanceof Error ? e.message : '头像保存失败' }
+  finally { avatarUploading.value = false }
+}
+async function uploadAvatar(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  avatarUploading.value = true; formErr.value = ''
+  try {
+    const res = await userApi.uploadAvatar(file)
+    await auth.updateInfo({ avatar: res.avatar })
+  } catch (err) { formErr.value = err instanceof Error ? err.message : '头像上传失败' }
+  finally {
+    avatarUploading.value = false
+    input.value = ''
+  }
 }
 async function saveEdit() {
   saving.value = true; formErr.value = ''
@@ -213,7 +247,8 @@ onMounted(async () => {
     </header>
 
     <div class="user-card">
-      <div class="avatar">{{ avatarText() }}</div>
+      <img v-if="currentAvatar" class="avatar avatar-img" :src="currentAvatar" :alt="auth.userInfo?.nickname || auth.userInfo?.username || '头像'" />
+      <div v-else class="avatar">{{ avatarText() }}</div>
       <div class="user-info">
         <p class="username">{{ auth.userInfo?.nickname || auth.userInfo?.username || '—' }}</p>
         <div class="user-tags">
@@ -355,6 +390,26 @@ onMounted(async () => {
           <div class="sheet-handle"></div>
           <div class="sheet-eyebrow">EDIT PROFILE</div>
           <h3 class="sheet-title">编辑资料</h3>
+          <div class="sheet-field">
+            <label>AVATAR</label>
+            <div class="avatar-editor">
+              <img v-if="currentAvatar" class="avatar-preview" :src="currentAvatar" alt="当前头像" />
+              <div v-else class="avatar-preview avatar-preview--text">{{ avatarText() }}</div>
+              <button class="avatar-upload-btn" :disabled="avatarUploading" @click="avatarFileInput?.click()">
+                {{ avatarUploading ? '处理中…' : '上传头像' }}
+              </button>
+              <input ref="avatarFileInput" class="avatar-file" type="file" accept="image/jpeg,image/png,image/gif,image/webp" @change="uploadAvatar" />
+            </div>
+            <div class="avatar-presets">
+              <button v-for="item in DEFAULT_AVATARS" :key="item.url"
+                :class="['avatar-preset', { active: currentAvatar === item.url }]"
+                :title="item.label"
+                :disabled="avatarUploading"
+                @click="selectDefaultAvatar(item.url)">
+                <img :src="item.url" :alt="item.label" />
+              </button>
+            </div>
+          </div>
           <div class="sheet-field"><label>NICKNAME</label><input v-model="editForm.nickname" placeholder="设置昵称" /></div>
           <div class="sheet-field"><label>BIO</label><textarea v-model="editForm.bio" placeholder="介绍一下自己" rows="3"></textarea></div>
           <div class="sheet-field">
@@ -441,6 +496,7 @@ onMounted(async () => {
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0; box-shadow: 0 4px 12px rgba(200,134,10,0.2);
 }
+.avatar-img { object-fit: cover; background: var(--bg-elevated); border: 1px solid var(--border); }
 .user-info { flex: 1; min-width: 0; }
 .username { font-family: 'Libre Baskerville', 'Noto Serif SC', serif; font-size: 17px; font-weight: 700; color: var(--text-primary); margin-bottom: 5px; }
 .user-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
@@ -613,6 +669,37 @@ onMounted(async () => {
   transition: border-color 0.18s, box-shadow 0.18s; resize: none;
 }
 .sheet-field input:focus, .sheet-field textarea:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-dim); }
+.avatar-editor { display: flex; align-items: center; gap: 12px; }
+.avatar-preview {
+  width: 54px; height: 54px; border-radius: var(--radius);
+  object-fit: cover; border: 1px solid var(--border); background: var(--bg-elevated);
+  flex-shrink: 0;
+}
+.avatar-preview--text {
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; background: var(--brand);
+  font-family: 'Libre Baskerville', serif; font-size: 20px; font-weight: 700;
+}
+.avatar-upload-btn {
+  height: 34px; padding: 0 14px; border-radius: 17px;
+  background: var(--brand); color: #fff; font-size: 13px; font-weight: 700;
+  transition: opacity 0.15s;
+}
+.avatar-upload-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.avatar-file { display: none; }
+.avatar-presets { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+.avatar-presets::-webkit-scrollbar { display: none; }
+.avatar-preset {
+  width: 42px; height: 42px; border-radius: var(--radius-sm);
+  border: 2px solid transparent; background: var(--bg);
+  padding: 2px; flex-shrink: 0; transition: border-color 0.15s, transform 0.15s;
+}
+.avatar-preset img {
+  width: 100%; height: 100%; border-radius: 4px;
+  display: block; object-fit: cover;
+}
+.avatar-preset.active { border-color: var(--brand); }
+.avatar-preset:active { transform: scale(0.96); }
 .radio-group { display: flex; gap: 8px; }
 .radio-btn { flex: 1; padding: 9px 0; font-size: 14px; font-weight: 600; color: var(--text-secondary); background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); transition: all 0.15s; }
 .radio-btn.active { background: var(--brand-dim); border-color: var(--brand); color: var(--brand); }

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { userApi, type UserInfo } from '@/api/user'
+import { useNewsStore } from '@/stores/newsStore'
 
 export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(localStorage.getItem('token'))
@@ -9,9 +10,11 @@ export const useAuthStore = defineStore('auth', () => {
   const isLoggedIn = computed(() => !!token.value)
 
   function setAuth(t: string, info: UserInfo) {
+    const switchedUser = userInfo.value?.id !== info.id
     token.value = t
     userInfo.value = info
     localStorage.setItem('token', t)
+    if (switchedUser) useNewsStore().resetState()
   }
 
   async function login(username: string, password: string) {
@@ -42,6 +45,7 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = null
     userInfo.value = null
     localStorage.removeItem('token')
+    useNewsStore().resetState()
   }
 
   return { token, userInfo, isLoggedIn, login, register, fetchInfo, updateInfo, logout }
