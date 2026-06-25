@@ -14,6 +14,18 @@ const refreshDone = ref(false)
 const sentinel = ref<HTMLElement | null>(null)
 let observer: IntersectionObserver | null = null
 
+function scrollSourceStrip(e: WheelEvent) {
+  const el = e.currentTarget as HTMLElement
+  const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY
+  if (!delta || el.scrollWidth <= el.clientWidth) return
+
+  const next = Math.max(0, Math.min(el.scrollLeft + delta, el.scrollWidth - el.clientWidth))
+  if (next !== el.scrollLeft) {
+    e.preventDefault()
+    el.scrollLeft = next
+  }
+}
+
 // 搜索状态
 const searchQuery = ref('')
 const searchActive = ref(false)
@@ -344,7 +356,7 @@ async function menuQueue() {
       </div>
     </header>
 
-    <div class="source-strip" :class="{ hidden: searchActive }">
+    <div class="source-strip" :class="{ hidden: searchActive }" @wheel="scrollSourceStrip">
       <div class="source-chips">
         <button
           v-for="cat in news.categories"
@@ -362,7 +374,7 @@ async function menuQueue() {
       </div>
     </div>
 
-    <div class="search-bar" :style="{ top: searchActive ? '54px' : 'calc(54px + 44px)' }">
+    <div class="search-bar">
       <div class="search-inner">
         <svg class="search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none">
           <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.5"/>
@@ -421,8 +433,7 @@ async function menuQueue() {
       </div>
     </div>
 
-    <div v-if="!searchActive && historyList.length" class="history-bar"
-      :style="{ top: 'calc(54px + 44px + 56px)' }">
+    <div v-if="!searchActive && historyList.length" class="history-bar">
       <div class="history-head">
         <span class="history-label">RECENT</span>
         <button class="history-clear" @click="clearHistory" aria-label="清空搜索历史">清空</button>
@@ -564,13 +575,21 @@ async function menuQueue() {
 </template>
 
 <style scoped>
-.news-page { display: flex; flex-direction: column; min-height: 100vh; background: var(--bg); width: 100%; }
+.news-page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - var(--nav-h) - 4px);
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg);
+  width: 100%;
+}
 
 .top-bar {
   height: 54px; background: var(--bg-card);
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 16px; border-bottom: 1px solid var(--border);
-  position: sticky; top: 0; z-index: 10; flex-shrink: 0;
+  position: relative; z-index: 10; flex-shrink: 0;
   box-shadow: var(--shadow-sm);
 }
 .logo-wrap { display: flex; align-items: center; gap: 10px; }
@@ -606,8 +625,9 @@ async function menuQueue() {
 
 .source-strip {
   background: var(--bg-card); border-bottom: 1px solid var(--border);
-  position: sticky; top: 54px; z-index: 9; flex-shrink: 0;
-  overflow-x: auto; scrollbar-width: none;
+  position: relative; z-index: 9; flex-shrink: 0;
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;
+  scroll-behavior: smooth;
   transition: max-height 0.2s, opacity 0.2s;
 }
 .source-strip.hidden { max-height: 0; opacity: 0; overflow: hidden; border-bottom: none; }
@@ -624,12 +644,13 @@ async function menuQueue() {
   background: linear-gradient(90deg, color-mix(in srgb, var(--bg-card) 0%, transparent), var(--bg-card));
   pointer-events: none;
 }
-.source-strip::-webkit-scrollbar { display: none; }
+.source-strip::-webkit-scrollbar { height: 4px; }
+.source-strip::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 999px; }
 .source-chips { display: flex; padding: 8px 12px; gap: 6px; width: max-content; min-width: 100%; }
 
 .search-bar {
   background: var(--bg-card); border-bottom: 1px solid var(--border);
-  position: sticky; z-index: 8; flex-shrink: 0;
+  position: relative; z-index: 8; flex-shrink: 0;
   padding: 8px 12px; transition: top 0.2s;
 }
 .search-inner {
@@ -697,7 +718,7 @@ async function menuQueue() {
 .history-bar {
   background: var(--bg-card);
   border-bottom: 1px solid var(--border);
-  position: sticky; z-index: 7; flex-shrink: 0;
+  position: relative; z-index: 7; flex-shrink: 0;
   padding: 8px 12px;
 }
 .history-head {
@@ -760,7 +781,13 @@ async function menuQueue() {
 .spinner { width: 26px; height: 26px; border: 2px solid var(--border); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg) } }
 
-.list-wrap { flex: 1; padding: 10px 10px 16px; }
+.list-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 10px 10px 16px;
+}
 .sentinel { height: 1px; }
 
 .news-card {
