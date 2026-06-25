@@ -2,6 +2,9 @@
 使用 Claude Haiku 翻译英文新闻内容为中文。
 base_url 已含 /v1，需去除后再传给 SDK，由 SDK 统一拼接。
 """
+import html
+import re
+
 import httpx
 from config.env import get
 
@@ -18,10 +21,50 @@ _HEADERS = {
     "content-type": "application/json",
 }
 
+_REFUSAL_PATTERNS = (
+    "i can't discuss that",
+    "i can’t discuss that",
+    "i can't help",
+    "i can’t help",
+    "i'm sorry",
+    "i am sorry",
+    "i appreciate you sharing",
+    "could you paste",
+    "provided only contains",
+    "无法协助",
+    "不能讨论",
+    "无法讨论",
+)
+
+
+def _plain_text(text: str) -> str:
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = html.unescape(text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _is_mostly_chinese(text: str) -> bool:
+    plain = _plain_text(text)
+    cjk_count = len(re.findall(r"[\u4e00-\u9fff]", plain))
+    latin_count = len(re.findall(r"[a-zA-Z]", plain))
+    return cjk_count >= 4 and cjk_count >= latin_count
+
+
+def _is_bad_translation(text: str, field: str) -> bool:
+    normalized = re.sub(r"\s+", " ", text).strip().lower()
+    if not normalized:
+        return True
+    if any(pattern in normalized for pattern in _REFUSAL_PATTERNS):
+        return True
+    return field == "title" and ("\n" in text or len(text) > 120)
+
 
 async def translate_to_zh(text: str, field: str = "content") -> str:
     """将英文文本翻译成中文，失败时返回空字符串。"""
     if not text or not text.strip():
+        return ""
+    clean_text = _plain_text(text)
+    if not clean_text or _is_mostly_chinese(clean_text):
         return ""
     if not _API_KEY:
         return ""
@@ -32,7 +75,7 @@ async def translate_to_zh(text: str, field: str = "content") -> str:
         "content": "这是一篇新闻正文，请翻译成流畅的中文，保留段落结构，不要加任何解释。",
     }.get(field, "请将以下内容翻译成中文，不要加任何解释。")
 
-    prompt = f"{hint}\n\n{text[:3000]}"
+    prompt = f"{hint}\n\n{clean_text[:3000]}"
 
     try:
         async with httpx.AsyncClient(timeout=30) as client:
@@ -46,7 +89,8 @@ async def translate_to_zh(text: str, field: str = "content") -> str:
                 },
             )
             r.raise_for_status()
-            return r.json()["content"][0]["text"].strip()
+            translated = r.json()["content"][0]["text"].strip()
+            return "" if _is_bad_translation(translated, field) else translated
     except Exception as e:
         print(f"[translator] 翻译失败 ({field}): {e}")
         return ""
