@@ -8,18 +8,18 @@ FALLBACK_SOURCE_PLATFORMS = ("hackernews", "openai", "google_ai", "mit")
 TIME_RANGE_DAYS = {"day": 1, "week": 7, "month": 30, "year": 365}
 
 
-async def get_enabled_source_platforms(db: AsyncSession) -> list[str]:
+async def get_enabled_sources(db: AsyncSession) -> list[tuple[str, int]]:
     try:
         result = await db.execute(text("""
-            SELECT platform
+            SELECT platform, trust_tier
             FROM news_source
             WHERE enabled = 1
             ORDER BY trust_tier ASC, id ASC
         """))
-        platforms = [row[0] for row in result.all()]
-        return platforms or list(FALLBACK_SOURCE_PLATFORMS)
+        sources = [(row[0], int(row[1] or 3)) for row in result.all()]
+        return sources or [(platform, 3) for platform in FALLBACK_SOURCE_PLATFORMS]
     except Exception:
-        return list(FALLBACK_SOURCE_PLATFORMS)
+        return [(platform, 3) for platform in FALLBACK_SOURCE_PLATFORMS]
 
 # 分类列表
 async def get_category(skip: int = 0, limit: int = 100, db: AsyncSession = None):
@@ -35,28 +35,40 @@ async def get_list(
 ):
     if source is None:
         bucket_limit = skip + limit
-        buckets = {}
-        for platform in await get_enabled_source_platforms(db):
-            result = await db.execute(
-                select(News)
-                .where(News.source_platform == platform)
-                .order_by(News.publish_time.desc())
-                .limit(bucket_limit)
-            )
-            buckets[platform] = result.scalars().all()
+        buckets: dict[str, list[int]] = {}
+        for platform, trust_tier in await get_enabled_sources(db):
+            trust_boost = max(0, 4 - trust_tier) * 8
+            id_rows = await db.execute(text("""
+                SELECT id
+                FROM news
+                WHERE source_platform = :platform
+                ORDER BY
+                  (
+                    GREATEST(0, 72 - TIMESTAMPDIFF(HOUR, publish_time, NOW()))
+                    + :trust_boost
+                    + LEAST(COALESCE(source_score, 0), 500) / 50
+                    + LEAST(COALESCE(source_comment_count, 0), 200) / 40
+                  ) DESC,
+                  publish_time DESC
+                LIMIT :limit
+            """), {"platform": platform, "trust_boost": trust_boost, "limit": bucket_limit})
+            buckets[platform] = [row[0] for row in id_rows.all()]
 
-        platforms = sorted(
-            (platform for platform in buckets if buckets[platform]),
-            key=lambda platform: buckets[platform][0].publish_time,
-            reverse=True,
-        )
-        mixed_news = []
+        ids = []
+        platforms = [platform for platform in buckets if buckets[platform]]
         for index in range(bucket_limit):
             for platform in platforms:
                 if index < len(buckets[platform]):
-                    mixed_news.append(buckets[platform][index])
-
-        return mixed_news[skip:skip + limit]
+                    ids.append(buckets[platform][index])
+        ids = ids[skip:skip + limit]
+        if not ids:
+            return []
+        result = await db.execute(
+            select(News)
+            .where(News.id.in_(ids))
+            .order_by(text(f"FIELD(id, {','.join(str(i) for i in ids)})"))
+        )
+        return result.scalars().all()
 
     stmt = select(News)
     if source:

@@ -15,7 +15,9 @@ def md5(s: str) -> str:
 async def save_news(db: AsyncSession, *, title: str, description: str = '',
                     content: str = '', image: str = '', author: str = '',
                     source_url: str = '', source_platform: str = '',
-                    publish_time: datetime = None, category_id: int = 1) -> bool:
+                    publish_time: datetime = None, category_id: int = 1,
+                    external_id: str = '', source_score: int = 0,
+                    source_comment_count: int = 0) -> bool:
     """
     将一条新闻写入数据库，通过 content_hash 去重。
     返回 True 表示新插入，False 表示已存在跳过。
@@ -37,12 +39,14 @@ async def save_news(db: AsyncSession, *, title: str, description: str = '',
         INSERT IGNORE INTO news
             (title, description, content, image, author,
              category_id, source_platform, source_url,
-             content_hash, publish_time,
+             external_id, content_hash, publish_time,
+             source_score, source_comment_count,
              title_zh, description_zh, content_zh)
         VALUES
             (:title, :desc, :content, :image, :author,
              :cat_id, :platform, :url,
-             :hash, :pub_time,
+             :external_id, :hash, :pub_time,
+             :source_score, :source_comment_count,
              :title_zh, :desc_zh, :content_zh)
     """), {
         "title": title[:200],
@@ -53,8 +57,11 @@ async def save_news(db: AsyncSession, *, title: str, description: str = '',
         "cat_id": category_id,
         "platform": source_platform,
         "url": source_url[:500] if source_url else '',
+        "external_id": external_id[:120] if external_id else None,
         "hash": hash_val,
         "pub_time": publish_time or datetime.now(),
+        "source_score": source_score or 0,
+        "source_comment_count": source_comment_count or 0,
         "title_zh": title_zh[:200] if title_zh else None,
         "desc_zh": description_zh[:500] if description_zh else None,
         "content_zh": content_zh or None,

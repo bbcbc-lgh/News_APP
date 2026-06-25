@@ -25,6 +25,10 @@ app.conf.beat_schedule = {
         "task": "crawler.scheduler.task_fetch_hn",
         "schedule": crontab(minute=30, hour="*"),
     },
+    "fetch-arxiv-every-4h": {
+        "task": "crawler.scheduler.task_fetch_arxiv",
+        "schedule": crontab(minute=10, hour="*/4"),
+    },
 }
 app.conf.timezone = "Asia/Shanghai"
 
@@ -59,4 +63,18 @@ def task_fetch_hn():
 
     count = _run(_inner())
     print(f"[HN] 采集完成: 新增 {count} 条")
+    return count
+
+
+@app.task(name="crawler.scheduler.task_fetch_arxiv")
+def task_fetch_arxiv():
+    from config.database_conf import AsyncSessionLocal
+    from crawler.arxiv_fetcher import fetch_arxiv
+
+    async def _inner():
+        async with AsyncSessionLocal() as db:
+            return await fetch_arxiv(db)
+
+    count = _run(_inner())
+    print(f"[arXiv] inserted {count}")
     return count

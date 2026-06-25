@@ -103,6 +103,9 @@ async def _process_item(client: httpx.AsyncClient, db: AsyncSession, item_id: in
             source_platform="hackernews",
             publish_time=pub_time,
             category_id=1,
+            external_id=str(item_id),
+            source_score=int(item.get("score") or 0),
+            source_comment_count=int(item.get("descendants") or 0),
         )
         if news_id:
             await infer_and_tag(db, news_id, title)
@@ -118,7 +121,7 @@ async def fetch_hn(db: AsyncSession) -> int:
             sem = asyncio.Semaphore(CONCURRENCY)
             tasks = [_process_item(client, db, item_id, sem) for item_id in ids]
             results = await asyncio.gather(*tasks, return_exceptions=True)
-            count = sum(1 for r in results if isinstance(r, int))
+            count = sum(1 for r in results if isinstance(r, int) and not isinstance(r, bool))
     except Exception as e:
         print(f"[hackernews] 采集失败: {e}")
     print(f"[hackernews] 新增 {count} 条")

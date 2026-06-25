@@ -36,10 +36,12 @@ async def _run_fetch():
         return False
     from crawler.rss_fetcher import fetch_all_rss
     from crawler.hn_fetcher import fetch_hn
+    from crawler.arxiv_fetcher import fetch_arxiv
     async with FETCH_LOCK:
         async with AsyncSessionLocal() as db:
             await fetch_all_rss(db)
             await fetch_hn(db)
+            await fetch_arxiv(db)
     return True
 
 
