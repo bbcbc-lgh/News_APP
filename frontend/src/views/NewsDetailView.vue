@@ -203,6 +203,52 @@ function renderContent(raw: string): string {
     .join('')
 }
 
+function cleanArticleText(raw: string): string {
+  return raw
+    .replace(/^这是一篇[^。\n]{0,60}。我为您翻译如下[:：]\s*/i, '')
+    .replace(/^这是一篇[^。\n]{0,60}的翻译[:：]\s*/i, '')
+    .replace(/^我为您翻译如下[:：]\s*/i, '')
+    .replace(/^以下是(?:这篇|该)?[^。\n]{0,40}的?中文翻译[:：]\s*/i, '')
+    .replace(/^翻译如下[:：]\s*/i, '')
+    .trim()
+}
+
+function isBadArticleText(raw: string): boolean {
+  const text = raw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+  if (!text) return true
+  const normalized = text.toLowerCase().replace(/[\s>：:。.!！-]+/g, '')
+  if (['点击查看原文', '查看原文', '阅读全文', 'readmore', 'continuereading'].includes(normalized)) return true
+  return [
+    'i appreciate you sharing',
+    'i need to be straightforward',
+    'copyrighted',
+    'full article from a blog',
+    'not a news article',
+    'could you paste',
+    'could you share',
+    'i\'m ready to help',
+    '我注意到你提供的内容',
+    '请确认你是否想让我翻译',
+    '不是新闻文章',
+    '我准备好了',
+    '没有看到需要翻译',
+    '请提供你想翻译',
+    '我无法完整翻译',
+    '不能直接翻译',
+    '受版权保护',
+  ].some((pattern) => text.toLowerCase().includes(pattern.toLowerCase()))
+}
+
+const articleContent = computed(() => {
+  const d = detail.value
+  if (!d) return ''
+  for (const raw of [d.contentZh, d.descriptionZh, d.content, d.description]) {
+    const cleaned = cleanArticleText(raw || '')
+    if (cleaned && !isBadArticleText(cleaned)) return cleaned
+  }
+  return ''
+})
+
 async function castVote(value: number) {
   if (!detail.value || voteLoading.value) return
   voteLoading.value = true
@@ -550,7 +596,11 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <div class="article-text" v-html="renderContent(detail.contentZh || detail.descriptionZh || detail.content || detail.description || '')"></div>
+        <div v-if="articleContent" class="article-text" v-html="renderContent(articleContent)"></div>
+        <div v-else class="article-empty">
+          <p>本站暂未收录可展示的正文内容。</p>
+          <p>可通过下方链接阅读原文。</p>
+        </div>
 
         <a v-if="detail.sourceUrl" :href="detail.sourceUrl" target="_blank" rel="noopener" class="source-link">
           <span>阅读原文</span>
@@ -765,6 +815,16 @@ onUnmounted(() => {
 .article-text :deep(li) { margin-bottom: 0.4em; }
 .article-text :deep(a) { color: var(--brand); border-bottom: 1px solid rgba(200,134,10,0.3); }
 .article-text :deep(img) { max-width: 100%; border-radius: var(--radius-sm); margin: 0.8em 0; display: block; }
+.article-empty {
+  padding: 18px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+  font-size: 14px;
+  line-height: 1.7;
+}
+.article-empty p + p { margin-top: 4px; }
 
 .source-link {
   display: inline-flex; align-items: center; gap: 5px; margin-top: 20px;

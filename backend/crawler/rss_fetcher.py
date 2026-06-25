@@ -1,4 +1,5 @@
 import re
+import html as html_lib
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 
@@ -75,6 +76,20 @@ def _get_image(entry) -> str:
                 if url.startswith("http"):
                     return url
     return ""
+
+
+def _clean_text(html: str) -> str:
+    text = re.sub(r"<[^>]+>", " ", html or "")
+    text = html_lib.unescape(text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _clean_summary(summary: str) -> str:
+    text = _clean_text(summary)
+    normalized = re.sub(r"[\s>：:。.!！-]+", "", text).lower()
+    if normalized in {"点击查看原文", "查看原文", "阅读全文", "readmore", "continue reading"}:
+        return ""
+    return text
 
 
 async def _get_og_image(client: httpx.AsyncClient, url: str) -> str:
@@ -174,7 +189,7 @@ async def fetch_rss_source(db: AsyncSession, source: dict) -> int:
         title = entry.get("title", "").strip()
         if not title:
             continue
-        description = entry.get("summary", "").strip()
+        description = _clean_summary(entry.get("summary", "").strip())
         if source.get("requires_ai_filter") and not is_ai_related(title, description):
             continue
         source_url = entry.get("link", "")

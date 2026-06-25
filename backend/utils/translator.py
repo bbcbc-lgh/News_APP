@@ -26,14 +26,39 @@ _REFUSAL_PATTERNS = (
     "i can’t discuss that",
     "i can't help",
     "i can’t help",
+    "i'm ready to help",
     "i'm sorry",
     "i am sorry",
     "i appreciate you sharing",
+    "i need to be straightforward",
     "could you paste",
+    "could you share",
     "provided only contains",
+    "copyrighted",
+    "full article from a blog",
+    "translate the complete text",
+    "word-for-word",
+    "not a news article",
+    "我注意到你提供的内容",
+    "请确认你是否想让我翻译",
+    "不是新闻文章",
+    "我准备好了",
+    "没有看到需要翻译",
+    "请提供你想翻译",
+    "我无法完整翻译",
+    "不能直接翻译",
+    "受版权保护",
     "无法协助",
     "不能讨论",
     "无法讨论",
+)
+
+_PREFACE_PATTERNS = (
+    r"^这是一篇[^。\n]{0,60}。我为您翻译如下[:：]\s*",
+    r"^这是一篇[^。\n]{0,60}的翻译[:：]\s*",
+    r"^我为您翻译如下[:：]\s*",
+    r"^以下是(?:这篇|该)?[^。\n]{0,40}的?中文翻译[:：]\s*",
+    r"^翻译如下[:：]\s*",
 )
 
 
@@ -43,11 +68,22 @@ def _plain_text(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+def _meaningful_length(text: str) -> int:
+    return len(re.findall(r"[\w\u4e00-\u9fff]", _plain_text(text), flags=re.UNICODE))
+
+
 def _is_mostly_chinese(text: str) -> bool:
     plain = _plain_text(text)
     cjk_count = len(re.findall(r"[\u4e00-\u9fff]", plain))
     latin_count = len(re.findall(r"[a-zA-Z]", plain))
     return cjk_count >= 4 and cjk_count >= latin_count
+
+
+def _strip_model_preface(text: str) -> str:
+    cleaned = text.strip()
+    for pattern in _PREFACE_PATTERNS:
+        cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
+    return cleaned.strip()
 
 
 def _is_bad_translation(text: str, field: str) -> bool:
@@ -65,6 +101,10 @@ async def translate_to_zh(text: str, field: str = "content") -> str:
         return ""
     clean_text = _plain_text(text)
     if not clean_text or _is_mostly_chinese(clean_text):
+        return ""
+    if field in {"title", "description"} and _meaningful_length(clean_text) < 18:
+        return ""
+    if field == "content" and _meaningful_length(clean_text) > 1200:
         return ""
     if not _API_KEY:
         return ""
@@ -89,7 +129,7 @@ async def translate_to_zh(text: str, field: str = "content") -> str:
                 },
             )
             r.raise_for_status()
-            translated = r.json()["content"][0]["text"].strip()
+            translated = _strip_model_preface(r.json()["content"][0]["text"].strip())
             return "" if _is_bad_translation(translated, field) else translated
     except Exception as e:
         print(f"[translator] 翻译失败 ({field}): {e}")
