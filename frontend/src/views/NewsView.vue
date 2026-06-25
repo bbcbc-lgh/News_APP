@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, watch, ref, computed } from 'vue'
+import { onMounted, onUnmounted, watch, ref, computed, nextTick } from 'vue'
 import { useNewsStore } from '@/stores/newsStore'
 import { newsApi, type NewsItem, type TimeRange } from '@/api/news'
 import { searchHistoryApi, type SearchHistoryItem } from '@/api/searchHistory'
@@ -12,19 +12,9 @@ const news = useNewsStore()
 const refreshing = ref(false)
 const refreshDone = ref(false)
 const sentinel = ref<HTMLElement | null>(null)
+const listWrap = ref<HTMLElement | null>(null)
+const sourceMenuOpen = ref(false)
 let observer: IntersectionObserver | null = null
-
-function scrollSourceStrip(e: WheelEvent) {
-  const el = e.currentTarget as HTMLElement
-  const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY
-  if (!delta || el.scrollWidth <= el.clientWidth) return
-
-  const next = Math.max(0, Math.min(el.scrollLeft + delta, el.scrollWidth - el.clientWidth))
-  if (next !== el.scrollLeft) {
-    e.preventDefault()
-    el.scrollLeft = next
-  }
-}
 
 // 搜索状态
 const searchQuery = ref('')
@@ -178,6 +168,16 @@ function exitSearch() {
 const recommendList = ref<import('@/api/news').NewsItem[]>([])
 const recommendLoading = ref(false)
 
+const sourceOptions = computed(() => [
+  ...news.categories.map((cat) => ({ id: cat.id, name: cat.name })),
+  { id: 'recommend', name: '推荐' },
+])
+
+const activeSourceLabel = computed(() => {
+  if (news.activeSource === 'recommend') return '推荐'
+  return news.categories.find((cat) => cat.id === news.activeSource)?.name || '全部'
+})
+
 async function loadRecommend() {
   recommendLoading.value = true
   try { recommendList.value = await newsApi.recommend(20) }
@@ -185,13 +185,31 @@ async function loadRecommend() {
   finally { recommendLoading.value = false }
 }
 
-function selectSource(id: string) {
+function rememberScroll() {
+  if (listWrap.value) news.setScrollTop(news.activeSource, listWrap.value.scrollTop)
+}
+
+function restoreScroll() {
+  nextTick(() => {
+    if (listWrap.value) listWrap.value.scrollTop = news.getScrollTop(news.activeSource)
+  })
+}
+
+function onListScroll() {
+  rememberScroll()
+}
+
+async function selectSource(id: string) {
+  sourceMenuOpen.value = false
+  if (news.activeSource === id) return
+  rememberScroll()
+  news.setScrollTop(id, 0)
+  news.setCategory(id)
   if (id === 'recommend') {
-    news.setCategory('recommend')
-    if (!recommendList.value.length) loadRecommend()
-  } else {
-    news.setCategory(id)
+    if (!recommendList.value.length) await loadRecommend()
   }
+  await nextTick()
+  if (listWrap.value) listWrap.value.scrollTop = 0
 }
 
 const displayList = computed(() =>
@@ -260,8 +278,13 @@ function setupObserver() {
 
 onMounted(async () => {
   await news.loadCategories()
-  if (news.newsList.length === 0) news.loadNews(news.activeSource, true)
+  if (news.activeSource === 'recommend') {
+    if (!recommendList.value.length) await loadRecommend()
+  } else if (news.newsList.length === 0) {
+    await news.loadNews(news.activeSource, true)
+  }
   setupObserver()
+  restoreScroll()
   loadHistory()
   tagApi.listAll().then(list => { allTags.value = list }).catch(() => {})
 })
@@ -273,8 +296,9 @@ onUnmounted(() => {
   if (longPressTimer) clearTimeout(longPressTimer)
 })
 
-watch(() => news.activeSource, (src) => {
-  if (src !== 'recommend') news.loadNews(src, true)
+watch(() => news.activeSource, async (src) => {
+  if (src !== 'recommend') await news.loadNews(src, true)
+  restoreScroll()
 })
 watch(sentinel, () => setupObserver())
 
@@ -356,20 +380,32 @@ async function menuQueue() {
       </div>
     </header>
 
-    <div class="source-strip" :class="{ hidden: searchActive }" @wheel="scrollSourceStrip">
-      <div class="source-chips">
+    <div class="source-bar" :class="{ hidden: searchActive }">
+      <button
+        class="source-select"
+        type="button"
+        :aria-expanded="sourceMenuOpen"
+        title="切换来源"
+        @click="sourceMenuOpen = !sourceMenuOpen"
+      >
+        <span class="source-select-kicker">SOURCE</span>
+        <span class="source-select-label">{{ activeSourceLabel }}</span>
+        <svg class="source-select-caret" width="13" height="13" viewBox="0 0 16 16" fill="none">
+          <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <div v-if="sourceMenuOpen" class="source-menu">
         <button
-          v-for="cat in news.categories"
+          v-for="cat in sourceOptions"
           :key="cat.id"
-          :class="['chip', { active: news.activeSource === cat.id }]"
+          type="button"
+          :class="['source-option', { active: news.activeSource === cat.id }]"
           @click="selectSource(cat.id)"
-        >{{ cat.name }}</button>
-        <button :class="['chip', 'chip--recommend', { active: news.activeSource === 'recommend' }]"
-          @click="selectSource('recommend')">
-          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style="margin-right:3px;vertical-align:-1px">
-            <path d="M6 1l1.3 2.6L10 4.1l-2 2 .5 2.9L6 7.6l-2.5 1.4.5-2.9-2-2 2.7-.5z" fill="currentColor"/>
+        >
+          <span>{{ cat.name }}</span>
+          <svg v-if="news.activeSource === cat.id" width="12" height="12" viewBox="0 0 16 16" fill="none">
+            <path d="M3 8.2l3 3L13 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          推荐
         </button>
       </div>
     </div>
@@ -455,7 +491,7 @@ async function menuQueue() {
       </div>
     </div>
 
-    <div class="list-wrap">
+    <div ref="listWrap" class="list-wrap" @scroll="onListScroll">
       <div v-if="searchActive && searchLoading && searchResults.length === 0" class="skeleton-list">
         <div v-for="i in 3" :key="i" class="skeleton-card">
           <div class="sk-index"></div>
@@ -499,6 +535,7 @@ async function menuQueue() {
           :key="item.id"
           class="news-card"
           :to="`/news/detail/${item.id}`"
+          @click="rememberScroll"
           @touchstart.passive="onCardTouchStart($event, item)"
           @touchend="onCardTouchEnd"
           @touchmove="onCardTouchEnd"
@@ -623,30 +660,86 @@ async function menuQueue() {
   font-weight: 500; color: #1A8C4E; letter-spacing: 2px;
 }
 
-.source-strip {
-  background: var(--bg-card); border-bottom: 1px solid var(--border);
-  position: relative; z-index: 9; flex-shrink: 0;
-  overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;
-  scroll-behavior: smooth;
-  transition: max-height 0.2s, opacity 0.2s;
+.source-bar {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  position: relative;
+  z-index: 9;
+  flex-shrink: 0;
+  padding: 8px 12px;
+  transition: max-height 0.2s, opacity 0.2s, padding 0.2s;
 }
-.source-strip.hidden { max-height: 0; opacity: 0; overflow: hidden; border-bottom: none; }
-.source-strip::after {
-  content: '';
-  position: sticky;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  float: right;
-  width: 28px;
-  height: 40px;
-  margin-top: -40px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--bg-card) 0%, transparent), var(--bg-card));
-  pointer-events: none;
+.source-bar.hidden { max-height: 0; opacity: 0; overflow: hidden; border-bottom: none; padding-block: 0; }
+.source-select {
+  width: 100%;
+  min-height: 38px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
 }
-.source-strip::-webkit-scrollbar { height: 4px; }
-.source-strip::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 999px; }
-.source-chips { display: flex; padding: 8px 12px; gap: 6px; width: max-content; min-width: 100%; }
+.source-select:hover,
+.source-select[aria-expanded="true"] {
+  border-color: var(--brand);
+  background: var(--brand-dim);
+}
+.source-select-kicker {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 1.5px;
+}
+.source-select-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+}
+.source-select-caret {
+  color: var(--text-muted);
+  transition: transform 0.15s;
+}
+.source-select[aria-expanded="true"] .source-select-caret { transform: rotate(180deg); }
+.source-menu {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+.source-option {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: 'JetBrains Mono', 'Noto Sans SC', sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.source-option:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+.source-option.active {
+  border-color: var(--brand);
+  background: var(--brand-dim);
+  color: var(--brand);
+}
 
 .search-bar {
   background: var(--bg-card); border-bottom: 1px solid var(--border);
@@ -768,15 +861,6 @@ async function menuQueue() {
   color: var(--text-muted); letter-spacing: 1px;
 }
 
-.chip {
-  flex-shrink: 0; padding: 5px 13px;
-  font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500;
-  color: var(--text-muted); background: transparent;
-  border: 1px solid var(--border); border-radius: 20px;
-  white-space: nowrap; transition: all 0.18s; letter-spacing: 0.5px;
-}
-.chip.active { color: #fff; background: var(--brand); border-color: var(--brand); }
-.chip--recommend { display: flex; align-items: center; }
 .state-wrap { display: flex; justify-content: center; padding: 60px 20px; }
 .spinner { width: 26px; height: 26px; border: 2px solid var(--border); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg) } }
@@ -907,7 +991,13 @@ async function menuQueue() {
   }
   .skeleton-list, .load-indicator, .load-more-wrap, .no-more { grid-column: 1 / -1; }
   .top-bar { padding: 0 24px; }
-  .source-chips { padding: 8px 24px; }
+  .source-bar { padding: 8px 24px; }
+  .source-select,
+  .source-menu {
+    max-width: 1040px;
+    margin-inline: auto;
+  }
+  .source-menu { margin-top: 8px; }
 }
 
 @media (min-width: 1200px) {

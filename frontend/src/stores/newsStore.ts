@@ -11,6 +11,7 @@ export const useNewsStore = defineStore('news', () => {
   const page = ref(1)
   const hasMore = ref(true)
   const loading = ref(false)
+  const scrollPositions = ref<Record<string, number>>({})
   let loadId = 0
 
   async function loadCategories() {
@@ -41,8 +42,16 @@ export const useNewsStore = defineStore('news', () => {
   }
 
   function setCategory(id: string) {
+    if (activeSource.value === id) return
     activeSource.value = id
-    loadNews(id, true)
+  }
+
+  function setScrollTop(source: string, value: number) {
+    scrollPositions.value[source] = value
+  }
+
+  function getScrollTop(source: string) {
+    return scrollPositions.value[source] || 0
   }
 
   function resetState() {
@@ -52,7 +61,21 @@ export const useNewsStore = defineStore('news', () => {
     page.value = 1
     hasMore.value = true
     loading.value = false
+    scrollPositions.value = {}
   }
 
-  return { categories, activeSource, newsList, page, hasMore, loading, loadCategories, loadNews, setCategory, resetState }
+  return {
+    categories,
+    activeSource,
+    newsList,
+    page,
+    hasMore,
+    loading,
+    loadCategories,
+    loadNews,
+    setCategory,
+    setScrollTop,
+    getScrollTop,
+    resetState,
+  }
 })
