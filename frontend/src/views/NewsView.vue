@@ -164,26 +164,13 @@ function exitSearch() {
   suggestions.value = []
 }
 
-// 推荐
-const recommendList = ref<import('@/api/news').NewsItem[]>([])
-const recommendLoading = ref(false)
-
-const sourceOptions = computed(() => [
-  ...news.categories.map((cat) => ({ id: cat.id, name: cat.name })),
-  { id: 'recommend', name: '推荐' },
-])
+const sourceOptions = computed(() =>
+  news.categories.map((cat) => ({ id: cat.id, name: cat.name }))
+)
 
 const activeSourceLabel = computed(() => {
-  if (news.activeSource === 'recommend') return '推荐'
   return news.categories.find((cat) => cat.id === news.activeSource)?.name || '全部'
 })
-
-async function loadRecommend() {
-  recommendLoading.value = true
-  try { recommendList.value = await newsApi.recommend(20) }
-  catch { recommendList.value = [] }
-  finally { recommendLoading.value = false }
-}
 
 function rememberScroll() {
   if (listWrap.value) news.setScrollTop(news.activeSource, listWrap.value.scrollTop)
@@ -205,16 +192,12 @@ async function selectSource(id: string) {
   rememberScroll()
   news.setScrollTop(id, 0)
   news.setCategory(id)
-  if (id === 'recommend') {
-    if (!recommendList.value.length) await loadRecommend()
-  }
   await nextTick()
   if (listWrap.value) listWrap.value.scrollTop = 0
 }
 
 const displayList = computed(() =>
   searchActive.value ? searchResults.value
-  : news.activeSource === 'recommend' ? recommendList.value
   : news.newsList
 )
 
@@ -278,9 +261,10 @@ function setupObserver() {
 
 onMounted(async () => {
   await news.loadCategories()
-  if (news.activeSource === 'recommend') {
-    if (!recommendList.value.length) await loadRecommend()
-  } else if (news.newsList.length === 0) {
+  if (!news.categories.some((cat) => cat.id === news.activeSource)) {
+    news.setCategory(news.categories[0]?.id || 'all')
+  }
+  if (news.newsList.length === 0) {
     await news.loadNews(news.activeSource, true)
   }
   setupObserver()
@@ -297,7 +281,7 @@ onUnmounted(() => {
 })
 
 watch(() => news.activeSource, async (src) => {
-  if (src !== 'recommend') await news.loadNews(src, true)
+  await news.loadNews(src, true)
   restoreScroll()
 })
 watch(sentinel, () => setupObserver())
@@ -509,7 +493,7 @@ async function menuQueue() {
         <span class="no-result-text">未找到 "{{ searchQuery }}" 相关内容</span>
       </div>
 
-      <div v-if="!searchActive && news.activeSource !== 'recommend' && news.newsList.length === 0 && news.loading" class="skeleton-list">
+      <div v-if="!searchActive && news.newsList.length === 0 && news.loading" class="skeleton-list">
         <div v-for="i in 5" :key="i" class="skeleton-card">
           <div class="sk-index"></div>
           <div class="sk-body">
@@ -520,13 +504,6 @@ async function menuQueue() {
           </div>
           <div class="sk-img"></div>
         </div>
-      </div>
-
-      <div v-if="!searchActive && news.activeSource === 'recommend' && recommendLoading" class="state-wrap">
-        <div class="spinner"></div>
-      </div>
-      <div v-else-if="!searchActive && news.activeSource === 'recommend' && !recommendLoading && recommendList.length === 0" class="no-result">
-        <span class="no-result-text">暂无推荐，多阅读几篇后再试</span>
       </div>
 
       <template v-if="displayList.length > 0">
@@ -567,10 +544,10 @@ async function menuQueue() {
       <div v-if="(searchActive ? searchLoading : news.loading) && displayList.length" class="load-indicator">
         <span class="load-dot" v-for="i in 3" :key="i"></span>
       </div>
-      <div v-if="!searchActive && news.activeSource !== 'recommend' && news.hasMore && news.newsList.length && !news.loading" class="load-more-wrap">
+      <div v-if="!searchActive && news.hasMore && news.newsList.length && !news.loading" class="load-more-wrap">
         <button class="load-more-btn" @click="news.loadNews(news.activeSource)">加载更多</button>
       </div>
-      <div v-if="!searchActive && news.activeSource !== 'recommend' && !news.hasMore && news.newsList.length" class="no-more">
+      <div v-if="!searchActive && !news.hasMore && news.newsList.length" class="no-more">
         <span class="no-more-line"></span>
         <span class="no-more-text">END OF FEED</span>
         <span class="no-more-line"></span>
@@ -860,10 +837,6 @@ async function menuQueue() {
   font-family: 'JetBrains Mono', monospace; font-size: 11px;
   color: var(--text-muted); letter-spacing: 1px;
 }
-
-.state-wrap { display: flex; justify-content: center; padding: 60px 20px; }
-.spinner { width: 26px; height: 26px; border: 2px solid var(--border); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.7s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg) } }
 
 .list-wrap {
   flex: 1;

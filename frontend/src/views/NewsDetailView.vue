@@ -207,6 +207,7 @@ function cleanArticleText(raw: string): string {
   return raw
     .replace(/^这是一篇[^。\n]{0,60}。我为您翻译如下[:：]\s*/i, '')
     .replace(/^这是一篇[^。\n]{0,60}的翻译[:：]\s*/i, '')
+    .replace(/^这是一篇[^：:\n]{0,80}翻译[:：]\s*/i, '')
     .replace(/^我为您翻译如下[:：]\s*/i, '')
     .replace(/^以下是(?:这篇|该)?[^。\n]{0,40}的?中文翻译[:：]\s*/i, '')
     .replace(/^翻译如下[:：]\s*/i, '')
