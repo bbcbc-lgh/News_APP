@@ -10,6 +10,17 @@ const username = ref('')
 const password = ref('')
 const error = ref('')
 const loading = ref(false)
+const sourceBadges = [
+  { label: 'HN', color: 'var(--hn)', bg: 'rgba(224,93,0,0.08)', border: 'rgba(224,93,0,0.2)' },
+  { label: 'OpenAI', color: 'var(--openai)', bg: 'rgba(13,138,106,0.08)', border: 'rgba(13,138,106,0.2)' },
+  { label: 'Google AI', color: 'var(--google)', bg: 'rgba(26,115,232,0.08)', border: 'rgba(26,115,232,0.2)' },
+  { label: 'Hugging Face', color: '#FF9D00', bg: 'rgba(255,157,0,0.10)', border: 'rgba(255,157,0,0.22)' },
+  { label: 'arXiv AI', color: '#B31B1B', bg: 'rgba(179,27,27,0.10)', border: 'rgba(179,27,27,0.22)' },
+  { label: 'TechCrunch AI', color: '#00A562', bg: 'rgba(0,165,98,0.10)', border: 'rgba(0,165,98,0.22)' },
+  { label: 'MIT Tech', color: 'var(--mit-fg)', bg: 'rgba(155,28,46,0.08)', border: 'rgba(155,28,46,0.2)' },
+  { label: 'InfoQ 中文', color: '#2563EB', bg: 'rgba(37,99,235,0.10)', border: 'rgba(37,99,235,0.22)' },
+  { label: 'GitHub AI', color: '#57606A', bg: 'rgba(87,96,106,0.10)', border: 'rgba(87,96,106,0.22)' },
+]
 
 async function submit() {
   if (!username.value || !password.value) { error.value = '请填写用户名和密码'; return }
@@ -58,10 +69,12 @@ async function submit() {
       <p class="switch-link">还没有账号？<RouterLink to="/register">立即注册 →</RouterLink></p>
     </div>
     <div class="source-badges">
-      <span class="badge hn">HN</span>
-      <span class="badge openai">OpenAI</span>
-      <span class="badge google">Google AI</span>
-      <span class="badge mit">MIT Tech</span>
+      <span
+        v-for="badge in sourceBadges"
+        :key="badge.label"
+        class="badge"
+        :style="{ color: badge.color, background: badge.bg, borderColor: badge.border }"
+      >{{ badge.label }}</span>
     </div>
   </div>
 </template>
@@ -193,9 +206,6 @@ input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-dim)
   font-family: 'JetBrains Mono', monospace;
   font-size: 10px; font-weight: 500;
   padding: 3px 9px; border-radius: 4px; letter-spacing: 0.5px;
+  border: 1px solid;
 }
-.badge.hn { background: rgba(224,93,0,0.08); color: var(--hn); border: 1px solid rgba(224,93,0,0.2); }
-.badge.openai { background: rgba(13,138,106,0.08); color: var(--openai); border: 1px solid rgba(13,138,106,0.2); }
-.badge.google { background: rgba(26,115,232,0.08); color: var(--google); border: 1px solid rgba(26,115,232,0.2); }
-.badge.mit { background: rgba(155,28,46,0.08); color: var(--mit-fg); border: 1px solid rgba(155,28,46,0.2); }
 </style>
