@@ -6,6 +6,7 @@ import re
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
+from utils.content_guard import clean_content, clean_summary, clean_title
 from utils.translator import translate_to_zh
 
 
@@ -30,6 +31,12 @@ async def save_news(db: AsyncSession, *, title: str, description: str = '',
     将一条新闻写入数据库，通过 content_hash 去重。
     返回 True 表示新插入，False 表示已存在跳过。
     """
+    title = clean_title(title)
+    description = clean_summary(description)
+    content = clean_content(content, min_chars=80) if content else ""
+    if not title:
+        return False
+
     # 优先用 URL 去重，URL 为空时 fallback 到标题
     hash_input = source_url.strip() if source_url and source_url.strip() else title
     hash_val = md5(hash_input)

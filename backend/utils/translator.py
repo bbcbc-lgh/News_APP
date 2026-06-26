@@ -7,6 +7,7 @@ import re
 
 import httpx
 from config.env import get
+from utils.content_guard import is_bad_text
 
 _API_KEY = get("ANTHROPIC_API_KEY")
 _BASE_URL = get("ANTHROPIC_BASE_URL", "").rstrip("/")
@@ -31,8 +32,10 @@ _REFUSAL_PATTERNS = (
     "i am sorry",
     "i appreciate you sharing",
     "i need to be straightforward",
+    "as an ai language model",
     "could you paste",
     "could you share",
+    "please provide",
     "provided only contains",
     "copyrighted",
     "full article from a blog",
@@ -51,6 +54,8 @@ _REFUSAL_PATTERNS = (
     "无法协助",
     "不能讨论",
     "无法讨论",
+    "作为ai语言模型",
+    "作为一个ai语言模型",
 )
 
 _PREFACE_PATTERNS = (
@@ -100,7 +105,7 @@ async def translate_to_zh(text: str, field: str = "content") -> str:
     if not text or not text.strip():
         return ""
     clean_text = _plain_text(text)
-    if not clean_text or _is_mostly_chinese(clean_text):
+    if not clean_text or is_bad_text(clean_text) or _is_mostly_chinese(clean_text):
         return ""
     if field in {"title", "description"} and _meaningful_length(clean_text) < 18:
         return ""

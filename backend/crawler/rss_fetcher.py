@@ -1,5 +1,4 @@
 import re
-import html as html_lib
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 
@@ -11,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from crawler.base import save_news
 from crawler.filters import is_ai_related
 from crud.topic_tag import infer_and_tag
+from utils.content_guard import clean_content, clean_summary, strip_html
 
 
 RSS_FALLBACK_SOURCES = [
@@ -78,18 +78,13 @@ def _get_image(entry) -> str:
     return ""
 
 
-def _clean_text(html: str) -> str:
-    text = re.sub(r"<[^>]+>", " ", html or "")
-    text = html_lib.unescape(text)
-    return re.sub(r"\s+", " ", text).strip()
-
-
-def _clean_summary(summary: str) -> str:
-    text = _clean_text(summary)
-    normalized = re.sub(r"[\s>：:。.!！-]+", "", text).lower()
-    if normalized in {"点击查看原文", "查看原文", "阅读全文", "readmore", "continue reading"}:
-        return ""
-    return text
+def _entry_content(entry, description: str) -> str:
+    for item in entry.get("content") or []:
+        value = item.get("value", "") if isinstance(item, dict) else ""
+        content = clean_content(value, min_chars=160)
+        if content and len(strip_html(content)) > len(description or "") + 80:
+            return content
+    return ""
 
 
 async def _get_og_image(client: httpx.AsyncClient, url: str) -> str:
@@ -189,10 +184,11 @@ async def fetch_rss_source(db: AsyncSession, source: dict) -> int:
         title = entry.get("title", "").strip()
         if not title:
             continue
-        description = _clean_summary(entry.get("summary", "").strip())
+        description = clean_summary(entry.get("summary", "").strip())
         if source.get("requires_ai_filter") and not is_ai_related(title, description):
             continue
         source_url = entry.get("link", "")
+        content = _entry_content(entry, description)
         image = _get_image(entry)
         if not image:
             image = await _get_og_image(client, source_url)
@@ -200,7 +196,7 @@ async def fetch_rss_source(db: AsyncSession, source: dict) -> int:
             db,
             title=title,
             description=description,
-            content=entry.get("content", [{}])[0].get("value", "") if entry.get("content") else "",
+            content=content,
             image=image,
             author=entry.get("author", source["name"]),
             source_url=source_url,

@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from crawler.base import save_news
 from crud.topic_tag import infer_and_tag
+from utils.content_guard import clean_content, clean_summary
 
 
 ARXIV_API = "https://export.arxiv.org/api/query"
@@ -56,7 +57,9 @@ async def fetch_arxiv(db: AsyncSession) -> int:
     count = 0
     for entry in feed.entries:
         title = " ".join((entry.get("title") or "").split())
-        summary = " ".join((entry.get("summary") or "").split())
+        summary_raw = " ".join((entry.get("summary") or "").split())
+        summary = clean_summary(summary_raw)
+        content = clean_content(summary_raw, min_chars=120, max_chars=2500)
         arxiv_id = _entry_id(entry)
         source_url = entry.get("link") or f"https://arxiv.org/abs/{arxiv_id}"
         if not title or not arxiv_id:
@@ -66,7 +69,7 @@ async def fetch_arxiv(db: AsyncSession) -> int:
             db,
             title=title,
             description=summary,
-            content="",
+            content=content,
             image="",
             author=_entry_authors(entry) or "arXiv",
             source_url=source_url,
